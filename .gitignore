@@ -11,7 +11,8 @@ data/
 *.db
 *.db-wal
 *.db-shm
-
+DB_POSTMORTEM.md
+POSTMORTEM.md
 # python bytecode (server.py is stdlib; nothing compiled ships)
 __pycache__/
 
