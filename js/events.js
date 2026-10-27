@@ -378,6 +378,10 @@ function checkDayRollover() {
 }
 
 function init() {
+  boot();
+}
+
+async function boot() {
   registerServiceWorker();
   let storedVault = null;
   try {
@@ -386,7 +390,6 @@ function init() {
     storedVault = null;
   }
   state = loadState();
-  dayBooted = todayKey();
   try {
     localStorage.setItem('__pathstone_probe__', '1');
     localStorage.removeItem('__pathstone_probe__');
@@ -395,6 +398,27 @@ function init() {
     storageBlocked = true;
   }
   ui.view = VIEWS.includes(window.location.hash.replace('#', '')) ? window.location.hash.replace('#', '') : 'today';
+
+  /* Open the database, then let the newer copy win: the mirror (instant,
+   * synchronous) can be one change ahead after a crash mid-write. */
+  try {
+    const dbRecord = await readVaultFromDb();
+    dbFailed = false;
+    const verdict = newerVaultCopy(dbRecord, state);
+    if (verdict === 'db') {
+      state = normalizeState(dbClone(dbRecord.state));
+    } else if (dbRecord) {
+      /* tie or mirror ahead: push the mirror into the database */
+      writeVaultToDb(state).catch(() => {});
+    } else if (storedVault && !storageBlocked) {
+      /* first boot with this database: migrate the old mirror across */
+      writeVaultToDb(state).then(() => showToast('Vault moved into the local database')).catch(() => {});
+    }
+  } catch (error) {
+    dbFailed = true; /* honest fallback: mirror-only mode */
+  }
+
+  dayBooted = todayKey();
   applyTheme(state.settings.theme);
   if (!storedVault) saveState();
   bindForms();
@@ -414,6 +438,13 @@ function init() {
   if (!storedVault) {
     openLayer($('#firstRunModal'));
   }
+  window.addEventListener('beforeunload', () => {
+    flushDbSave();
+  });
+  /* pagehide: the flush moment on mobile, where beforeunload is advisory */
+  window.addEventListener('pagehide', () => {
+    flushDbSave();
+  });
 }
 
 if (document.readyState === 'loading' && !document.querySelector('#docModal')) {

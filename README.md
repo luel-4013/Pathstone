@@ -27,6 +27,10 @@ service worker has cached it.
 - **Sweep, don't postpone** — overdue tasks are swept to an *undated backlog*
   (visible count + a **Decide** action in the plan check) instead of bouncing
   to tomorrow forever.
+- **Backups & restore** — a snapshot is stored daily when the vault changes,
+  **Back up now** stores one on demand, imports and restores stash a safety
+  catch first, and the Backups list restores any of it in one click. The
+  newest 14 daily snapshots are kept (30 total).
 - **Workday boundary** — after 17:00 local time the plan check declares the
   day closed; nothing is forced to move tonight.
 - **Focus timer** — start/stop button in the momentum card; real minutes are
@@ -59,12 +63,25 @@ If storage is not available in your browser context, the save pill says
 
 ## Data & privacy
 
-- Everything lives in `localStorage` under the key `pathstone-vault-v1`.
+- The vault's durable home is a real **IndexedDB database** (`pathstone-db`)
+  inside your browser: transactional, no size cap of practical concern at
+  personal scale, and fully on-device. Your browser's fast string storage
+  (`localStorage`, key `pathstone-vault-v1`) stays as a synchronous mirror —
+  on boot the copy with the newer timestamp wins, so a crash between the two
+  never rolls your work back.
 - **Export / Import** your whole vault as a JSON file from the vault card.
-  Export is also the backup story: the card nudges you when the last backup
-  is ~two weeks old.
-- Clearing the browser's site data deletes the vault — export first.
-- No network calls beyond the initial file load; there is no server.
+  Export is the cross-browser/cross-device survival story; the card nudges
+  you when the last export is ~two weeks old.
+- **Backups** (vault card → Backups): automatic daily snapshots of the
+  vault, manual "back up now" snapshots, and safety catches taken before
+  every restore/import — restore any of them with one confirm.
+- Clearing the browser's site data deletes the database **and** the mirror —
+  export first.
+- Saving is dual-write by design: the mirror takes every change instantly,
+  the database follows within 400 ms, and an unload flush covers the gap.
+- If storage is blocked or the database refuses to open, the app says so in
+  plain words (**Storage unavailable** / **database off**) — it never
+  pretends to save.
 
 ## Offline & install
 
@@ -88,8 +105,8 @@ The app itself has zero dependencies and no build step. There is an optional
 developer test suite (jsdom) that boots the real app and checks behavior:
 
 ```bash
-npm install      # installs jsdom as a dev dependency only
-npm test         # runs the full assertion suite
+npm install      # installs jsdom + fake-indexeddb as dev dependencies only
+npm test         # runs the full assertion suite (82 checks)
 ```
 
 Notes on the harness live in `tests/test_pathstone.js` — including the two
@@ -103,20 +120,24 @@ index.html            — the single page (all views/overlays live here)
 styles.css            — the whole visual system
 manifest.webmanifest  — PWA install metadata
 sw.js                 — offline cache (stale-while-revalidate + shell fallback)
-js/core.js            — state helpers, time math, plan check, themes
+js/core.js            — state helpers, time math, plan check, themes, save flow
+js/db.js              — the IndexedDB layer: vault record + snapshot store + prune
 js/seed.js            — seed data, blank-vault factory, import validation
 js/render.js          — chrome + dashboard rendering
 js/views.js           — lists, board, palette, week views
 js/actions.js         — every user action (capture, move, complete, repeat…)
-js/events.js          — init, bindings, keyboard, heartbeats, storage probe
-tests/                — optional jsdom suite (npm test)
+js/events.js          — init, bindings, keyboard, heartbeats, storage probe, boot
+tests/                — jsdom + fake-indexeddb suite (npm test)
 ```
 
 ## Documentation
 
-- `POSTMORTEM.md` — a reusable six-month failure post-mortem: how the product
-  died twice in testing, what was fixed and proven, what was consciously
+- `POSTMORTEM.md` — the product's failure post-mortems in reusable form:
+  the first two deaths, what was fixed and proven, what was consciously
   shelved, and the blank template for running the same autopsy on anything.
+- `DB_POSTMORTEM.md` — the third autopsy, scoped to the database, backup and
+  restore feature: how it could die before it shipped, what was caught,
+  and what remains honest.
 
 ## Known limits (by design)
 

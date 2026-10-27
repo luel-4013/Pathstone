@@ -100,6 +100,7 @@
       <div class="vault-actions">
         <button id="exportBtn"><svg class="ico"><use href="#i-download"/></svg>Export</button>
         <button id="importBtn"><svg class="ico"><use href="#i-upload"/></svg>Import</button>
+        <button id="backupsBtn" data-action="open-backups" title="Automatic daily snapshots and one-click restore"><svg class="ico"><use href="#i-shield"/></svg><span>Backups</span></button>
         <button id="remindBtn" data-action="toggle-reminders" aria-pressed="false" title="A heads-up notification when the vault opens"><svg class="ico"><use href="#i-review"/></svg><span>Remind daily</span></button>
         <button id="demoResetBtn" data-action="reset-demo" hidden title="Swap the demo for an empty vault"><svg class="ico"><use href="#i-trash"/></svg><span>Start empty</span></button>
       </div>
@@ -355,6 +356,23 @@
   </div>
 </div>
 
+<div class="modal-wrap" id="backupsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="backupsTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Backup · restore</span><h2 id="backupsTitle">Vault snapshots</h2></div>
+      <button class="modal-close" data-close aria-label="Close backups"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-intro">A snapshot is stored automatically once a day when the vault changes, and every import or restore stashes a safety catch first. The newest 14 daily snapshots are kept — this data never leaves the device, so these snapshots are the in-browser undo history. For a copy elsewhere, export.</p>
+      <div class="snap-list" id="backupsList"></div>
+      <div class="backup-actions-row">
+        <button type="button" data-action="snapshot-now"><svg class="ico"><use href="#i-plus"/></svg>Back up now</button>
+        <button type="button" data-action="export"><svg class="ico"><use href="#i-download"/></svg>Download JSON</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-wrap" id="taskModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
     <div class="modal-head">
@@ -512,6 +530,7 @@
 </div>
 
 <script src="js/core.js" defer></script>
+<script src="js/db.js" defer></script>
 <script src="js/seed.js" defer></script>
 <script src="js/render.js" defer></script>
 <script src="js/views.js" defer></script>

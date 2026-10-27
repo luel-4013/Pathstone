@@ -44,6 +44,9 @@ let state;
 let toastTimer;
 let dragTaskId = null;
 let storageBlocked = false;
+let dbFailed = true; /* pessimistic until the database opens successfully */
+let dbSaveTimer = null;
+let dailySnapshotInFlight = false;
 const ui = {
   view: 'today',
   editingTaskId: null,
@@ -182,31 +185,92 @@ function showToast(message) {
 }
 
 function updateSaveState() {
-  if (storageBlocked) {
-    const blockedStatus = $('#saveStatus');
-    if (blockedStatus) blockedStatus.innerHTML = `${icon('i-lock')}Storage unavailable`;
-    const blockedNote = $('#localNote');
-    if (blockedNote) blockedNote.textContent = 'Storage unavailable here · the vault can not save in this browser context';
-    return;
-  }
+  const mirrorMoved = storageBlocked || state === undefined;
+  const dbDown = dbFailed;
   const date = state && state.meta && state.meta.lastSaved ? new Date(state.meta.lastSaved) : new Date();
   const time = fmtClock(date);
   const status = $('#saveStatus');
-  if (status) status.innerHTML = `${icon('i-lock')}Saved ${time}`;
   const note = $('#localNote');
-  if (note) note.textContent = `Saved locally · ${time}`;
+  if (!mirrorMoved && !dbDown) {
+    if (status) status.innerHTML = `${icon('i-lock')}Saved ${time}`;
+    if (note) note.textContent = `Saved to the local database · ${time}`;
+  } else if (dbDown && !mirrorMoved) {
+    if (status) status.innerHTML = `${icon('i-lock')}Saved ${time} · database off`;
+    if (note) note.textContent = `Database unreachable · saving to the fallback mirror · ${time}`;
+  } else {
+    if (status) status.innerHTML = `${icon('i-lock')}Storage unavailable`;
+    if (note) note.textContent = 'Storage unavailable here · the vault can not save in this browser context';
+  }
 }
 
 function saveState() {
   state.meta.lastSaved = new Date().toISOString();
   try {
     localStorage.setItem(VAULT_KEY, JSON.stringify(state));
+  } catch (error) {
+    showToast('Could not write to the local mirror');
+  }
+  maybeDailySnapshot();
+  scheduleDbSave();
+  updateSaveState();
+  return true;
+}
+
+/* One snapshot per day the vault changes, taken before the change is saved.
+ * The stamp is set only after the write resolves, so a failed snapshot is
+ * retried by the next save instead of being marked done and lost. The
+ * in-flight guard keeps a burst of saves from writing duplicates. */
+function maybeDailySnapshot() {
+  if (dbFailed || dailySnapshotInFlight) return;
+  const today = todayKey();
+  if (state.meta.lastSnapshotDate === today) return;
+  dailySnapshotInFlight = true;
+  writeSnapshotToDb('auto', state)
+    .then(() => {
+      state.meta.lastSnapshotDate = today;
+    })
+    .then(() => pruneSnapshots())
+    .catch(() => {})
+    .then(() => {
+      dailySnapshotInFlight = false;
+    });
+}
+
+/* Debounced write-behind: the mirror takes the change instantly, the
+ * database follows within half a second. */
+function scheduleDbSave() {
+  if (dbSaveTimer) clearTimeout(dbSaveTimer);
+  dbSaveTimer = window.setTimeout(() => {
+    dbSaveTimer = null;
+    flushDbSave();
+  }, 400);
+}
+
+function flushDbSave() {
+  if (dbSaveTimer) {
+    clearTimeout(dbSaveTimer);
+    dbSaveTimer = null;
+  }
+  if (dbFailed) return Promise.resolve(false);
+  return writeVaultToDb(state).then(() => {
     updateSaveState();
     return true;
-  } catch (error) {
-    showToast('Could not write to the local vault');
+  }).catch(() => {
+    dbFailed = true;
+    updateSaveState();
     return false;
-  }
+  });
+}
+
+/* Boot decision: the copy with the newer savedAt wins. A null database copy
+ * can not win. Returns 'db' | 'mirror' | 'tie' (mirror keeps it when equal,
+ * because the mirror write finished last). */
+function newerVaultCopy(dbRecord, mirrorState) {
+  const dbTime = dbRecord && dbRecord.savedAt ? new Date(dbRecord.savedAt).getTime() : 0;
+  const mirrorTime = mirrorState && mirrorState.meta && mirrorState.meta.lastSaved ? new Date(mirrorState.meta.lastSaved).getTime() : 0;
+  if (!dbRecord || !Number.isFinite(dbTime)) return 'mirror';
+  if (!Number.isFinite(mirrorTime)) return 'db';
+  return dbTime > mirrorTime ? 'db' : 'tie';
 }
 
 function commit(message) {

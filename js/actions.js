@@ -634,14 +634,99 @@ function exportData() {
   showToast('Local vault exported');
 }
 
+function snapshotNowManual() {
+  if (dbFailed) {
+    showToast('The database is unreachable — export a JSON copy instead');
+    return;
+  }
+  writeSnapshotToDb('manual', state)
+    .then(() => showToast('Snapshot stored · it is on the Backups list'))
+    .catch(() => showToast('Snapshot failed — the vault itself is unchanged'));
+}
+
+function backupKindLabel(kind) {
+  if (kind === 'auto') return 'Daily';
+  if (kind === 'manual') return 'Manual';
+  if (kind === 'pre') return 'Safety catch';
+  return 'Backup';
+}
+
+function renderBackupsList(entries) {
+  const list = $('#backupsList');
+  if (!list) return;
+  if (!entries.length) {
+    list.innerHTML = '<p class="snap-empty">No snapshots yet — the first daily snapshot lands when the vault next changes. <b>Back up now</b> stores one immediately.</p>';
+    return;
+  }
+  list.innerHTML = entries.map((entry) => {
+    const when = new Date(entry.savedAt);
+    const name = Number.isNaN(when.getTime()) ? 'unknown time' : `${fmtMonthDay(when)} · ${fmtClock(when)}`;
+    return `<div class="snap-row"><span class="snap-when">${esc(name)}</span><span class="snap-kind">${esc(backupKindLabel(entry.kind))}</span><button class="mini-action accent" data-action="restore-snapshot" data-id="${esc(entry.id)}">Restore</button></div>`;
+  }).join('');
+}
+
+async function openBackups() {
+  const wrap = $('#backupsModal');
+  if (!wrap) return;
+  if (dbFailed) {
+    renderBackupsList([]);
+    const list = $('#backupsList');
+    list.innerHTML = '<p class="snap-empty">The local database is unreachable on this device — automatic snapshots are off. Use <b>Export</b> for a copy you keep elsewhere.</p>';
+    openLayer(wrap);
+    return;
+  }
+  try {
+    const entries = (await listSnapshots()).slice().sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
+    renderBackupsList(entries);
+  } catch (error) {
+    const list = $('#backupsList');
+    if (list) list.innerHTML = '<p class="snap-empty">The snapshots could not be read just now — the vault itself is fine. Close and try again.</p>';
+  }
+  openLayer(wrap);
+}
+
+async function restoreSnapshot(id) {
+  try {
+    const record = await readSnapshot(id);
+    if (!record || !record.state) {
+      showToast('Snapshot not found');
+      return;
+    }
+    if (!askConfirm('Restore this snapshot? The current state is stored as a safety catch first, so nothing can be lost.')) return;
+    if (!dbFailed) {
+      try {
+        await writeSnapshotToDb('pre', state);
+      } catch (error) {
+        /* best effort — the mirror still holds the pre-restore state */
+      }
+    }
+    state = normalizeState(dbClone(record.state));
+    applyTheme(state.settings.theme);
+    saveState();
+    closeLayers();
+    renderAll();
+    setView(ui.view || 'today', false);
+    showToast('Snapshot restored');
+  } catch (error) {
+    showToast('Restore failed — the vault is untouched');
+  }
+}
+
 function importData(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const parsed = JSON.parse(String(reader.result));
       if (!Array.isArray(parsed.projects) || !Array.isArray(parsed.tasks)) throw new Error('Invalid vault');
       if (!askConfirm('Replace the local vault with this file?')) return;
+      if (!dbFailed) {
+        try {
+          await writeSnapshotToDb('pre', state);
+        } catch (error) {
+          /* best effort safety catch */
+        }
+      }
       state = normalizeState(parsed);
       applyTheme(state.settings.theme);
       saveState();
@@ -705,6 +790,12 @@ function doAction(element) {
     applyPlan();
   } else if (action === 'export') {
     exportData();
+  } else if (action === 'open-backups') {
+    openBackups();
+  } else if (action === 'snapshot-now') {
+    snapshotNowManual();
+  } else if (action === 'restore-snapshot') {
+    restoreSnapshot(id);
   } else if (action === 'import') {
     $('#importInput').click();
   } else if (action === 'focus-run') {

@@ -32,7 +32,7 @@ const t = (name, condition) => {
   // network dependency. `$` must be escaped in replacement strings or
   // `const $$` gets mangled into `const $` by String.replace.
   let html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  for (const name of ['core', 'seed', 'render', 'views', 'actions', 'events']) {
+  for (const name of ['core', 'db', 'seed', 'render', 'views', 'actions', 'events']) {
     const source = fs.readFileSync(path.join(ROOT, 'js', `${name}.js`), 'utf8');
     const escaped = source.replace(/\$/g, '$$$$');
     html = html.replace(`<script src="js/${name}.js" defer></script>`, `<script>${escaped}</script>`);
@@ -45,6 +45,9 @@ const t = (name, condition) => {
     virtualConsole: vc,
     beforeParse(window) {
       window.confirm = () => true;
+      const fdb = require('fake-indexeddb');
+      window.indexedDB = new fdb.IDBFactory();
+      window.IDBKeyRange = fdb.IDBKeyRange;
       window.alert = () => {};
       if (!window.URL.createObjectURL) window.URL.createObjectURL = () => 'blob:mock-url';
       if (!window.URL.revokeObjectURL) window.URL.revokeObjectURL = () => {};
@@ -196,6 +199,62 @@ const t = (name, condition) => {
   t('reminder button keeps its icon and span label', Boolean(document.querySelector('#remindBtn svg')) && document.querySelector('#remindBtn span').textContent === 'Reminders on');
   const remindOff = S(`(function(){ const notesBefore = window.__notes.length; toggleReminders(); state.settings.lastReminderDate = null; runDailyReminder(); return { on: state.settings.reminders, notesAfter: window.__notes.length }; })()`);
   t('reminders off stops notifications', remindOff.on === false && remindOff.notesAfter === remindResult.notified);
+
+  // ---- Round-3: the database (IndexedDB), snapshots, restore ----
+
+  // Vault is durably in the database after a flush, and the save pill is honest
+  await S('flushDbSave()');
+  const dbRecord = await S('readVaultFromDb()');
+  t('vault lives in the database', Boolean(dbRecord) && dbRecord.state.projects.length === 4 && dbRecord.state.meta.demo === true);
+  t('save pill says the database saved it', document.getElementById('saveStatus').textContent.includes('Saved'));
+
+  // The first save of the boot day produced one automatic daily snapshot
+  const bootSnaps = await S('listSnapshots()');
+  t('boot produced one daily snapshot', bootSnaps.some((s) => s.kind === 'auto') && S('state.meta.lastSnapshotDate') === todayKey);
+
+  // Manual snapshot + write-behind roundtrip + restore with safety catch
+  const manualKey = await S(`writeSnapshotToDb('manual', state)`);
+  const countBefore = S('state.tasks.length');
+  S('state.tasks.push({ id: "junk-1", title: "junk", status: "backlog", estimate: 0, top: 0, due: null, notes: "", completedAt: null, completedFrom: null, repeat: "none", createdAt: new Date().toISOString(), subtasks: [], tags: [], archived: false, projectId: null, priority: "low", cover: null })');
+  await S('flushDbSave()');
+  const afterJunk = await S('readVaultFromDb()');
+  t('database wrote the new task through', afterJunk.state.tasks.length === countBefore + 1);
+  await S(`restoreSnapshot("${String(manualKey)}")`);
+  t('restore rewound the tasks', S('state.tasks.length') === countBefore && !S('state.tasks.some((t) => t.id === "junk-1")'));
+  const snapsAfterRestore = await S('listSnapshots()');
+  t('restore stored a safety catch', snapsAfterRestore.some((s) => s.kind === 'pre'));
+
+  // Backups modal lists them with a working Restore token each
+  S('openBackups()');
+  await new Promise((r) => window.setTimeout(r, 120));
+  const snapRows = document.querySelectorAll('#backupsList .snap-row');
+  t('backups modal lists snapshots', snapRows.length >= 2 && Boolean(document.querySelector('#backupsList [data-action="restore-snapshot"]')));
+  S('closeLayers()');
+
+  // Prune keeps the newest 14 daily snapshots (and drops the oldest ones)
+  for (let i = 0; i < 18; i += 1) {
+    await S(`writeSnapshotToDb('auto', state, 'snap-auto-TEST${i}')`);
+  }
+  await S('pruneSnapshots()');
+  const afterPrune = await S('listSnapshots()');
+  const autos = afterPrune.filter((s) => s.kind === 'auto');
+  t('prune keeps 14 daily snapshots', autos.length === 14);
+  t('prune dropped the oldest ones', !autos.some((s) => /TEST0$/.test(s.id)) && autos.some((s) => /TEST17$/.test(s.id)));
+  t('prune never deletes safety catches', afterPrune.some((s) => s.kind === 'pre'));
+
+  // Boot decision: the copy with the newer savedAt wins (crash-window rule)
+  t('newer copy wins: db over mirror', S(`newerVaultCopy({ savedAt: '2099-01-01T00:00:00.000Z' }, { meta: { lastSaved: '2026-01-01T00:00:00.000Z' } })`) === 'db');
+  t('newer copy wins: mirror over db', S(`newerVaultCopy({ savedAt: '2026-01-01T00:00:00.000Z' }, { meta: { lastSaved: '2099-01-01T00:00:00.000Z' } })`) === 'tie');
+  t('newer copy wins: null db loses', S(`newerVaultCopy(null, { meta: { lastSaved: '2026-01-01T00:00:00.000Z' } })`) === 'mirror');
+  t('newer copy wins: mirror without time loses', S(`newerVaultCopy({ savedAt: '2026-01-01T00:00:00.000Z' }, {})`) === 'db');
+
+  // Honest failure: an unreachable database reports itself, snapshot flows no-op
+  S('dbHandle = null; dbFailed = false;');
+  window.indexedDB = { open() { throw new TypeError('db-broken-for-test'); } };
+  t('open failure surfaces as rejection', await S('openDatabase().then(() => false).catch(() => true)') === true);
+  const snapshotStamp = S('state.meta.lastSnapshotDate');
+  S('dbFailed = true; maybeDailySnapshot()');
+  t('snapshot flow no-ops when the database is down', S('state.meta.lastSnapshotDate') === snapshotStamp);
 
   // First-run actions (real click path) — run after sweeps/reminders so demo data exists above
   document.querySelector('#firstRunModal [data-action="first-run-empty"]').click();

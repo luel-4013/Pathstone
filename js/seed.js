@@ -327,6 +327,7 @@ function normalizeState(candidate) {
   next.meta.demo = Boolean(storedDemo);
   next.meta.lastSaved = next.meta.lastSaved && !Number.isNaN(new Date(next.meta.lastSaved).getTime()) ? next.meta.lastSaved : new Date().toISOString();
   next.meta.lastExport = typeof next.meta.lastExport === 'string' && !Number.isNaN(new Date(next.meta.lastExport).getTime()) ? next.meta.lastExport : null;
+  next.meta.lastSnapshotDate = next.meta.lastSnapshotDate && parseKey(next.meta.lastSnapshotDate) ? String(next.meta.lastSnapshotDate) : null;
   next.events = Array.isArray(next.events) ? next.events.filter((event) => event && event.date) : [];
   next.focusLog = next.focusLog && typeof next.focusLog === 'object' ? next.focusLog : {};
   next.focusRun = next.focusRun && next.focusRun.startedAt && !Number.isNaN(new Date(next.focusRun.startedAt).getTime())
