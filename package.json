@@ -1,0 +1,16 @@
+{
+  "name": "pathstone",
+  "version": "0.1.0",
+  "description": "A calm, local-first workspace for tasks, projects, and a realistic day.",
+  "license": "MIT",
+  "author": "luel-4013",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "python3 -m http.server 8247 --bind 127.0.0.1",
+    "test": "node tests/test_pathstone.js"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}

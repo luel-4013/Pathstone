@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14120f">
+<meta name="description" content="Pathstone is a calm, local-first workspace for tasks, projects, and a realistic day.">
+<title>Pathstone</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-theme="dusk">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cairn" viewBox="0 0 24 24">
+    <ellipse cx="12" cy="19" rx="7.4" ry="2.4" fill="currentColor" stroke="none"/>
+    <ellipse cx="12" cy="13.7" rx="5.4" ry="2.1" fill="currentColor" stroke="none"/>
+    <ellipse cx="12" cy="8.9" rx="3.6" ry="1.8" fill="currentColor" stroke="none"/>
+    <ellipse cx="12" cy="5" rx="1.8" ry="1.25" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.3 4.3L19 6.8"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 13h4l2 3h4l2-3h4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><rect x="3.5" y="4" width="5" height="16" rx="1.3"/><rect x="9.5" y="4" width="5" height="11" rx="1.3"/><rect x="15.5" y="4" width="5" height="7" rx="1.3"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 2.3 5.6"/><path d="M4 17v-5h5"/><path d="M12 8v4l2.5 1.5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8.5 10V7a3.5 3.5 0 0 1 7 0v3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M5 20h14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 17V5M7.5 9.5 12 5l4.5 4.5M5 20h14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.2 1.8"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.4c0 4.3-2.8 7.5-7 9.1-4.2-1.6-7-4.8-7-9.1V6z"/><path d="m8.7 11.8 2.2 2.2 4.4-4.6"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5v4h4M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9.5 9.5v10M15.5 9.5v10"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 20 4.2-1 10.6-10.6-3.2-3.2L5 15.8z"/><path d="m13.8 7 3.2 3.2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark"><svg class="ico"><use href="#i-cairn"/></svg></span>
+    <div><strong>PATHSTONE</strong><small>a quiet system for loud minds</small></div>
+  </div>
+  <div class="local-pill"><i></i>Local only · no account</div>
+  <nav class="view-tabs" aria-label="Views">
+    <button class="view-tab active" data-view="today" aria-selected="true">Today</button>
+    <button class="view-tab" data-view="board" aria-selected="false">Board</button>
+    <button class="view-tab" data-view="project" aria-selected="false">Project</button>
+  </nav>
+  <div class="top-actions">
+    <div class="theme-switch" role="group" aria-label="Visual direction">
+      <button class="theme-btn active" data-theme="dusk" aria-pressed="true">Dusk</button>
+      <button class="theme-btn" data-theme="warm" aria-pressed="false">Warm</button>
+      <button class="theme-btn" data-theme="paper" aria-pressed="false">Paper</button>
+      <button class="theme-btn" data-theme="ink" aria-pressed="false">Ink</button>
+    </div>
+    <button class="icon-btn" id="searchBtn" aria-label="Search Pathstone" title="Search · Ctrl K"><svg class="ico"><use href="#i-search"/></svg></button>
+    <button class="primary-btn" id="newTaskBtn"><svg class="ico"><use href="#i-plus"/></svg>New task</button>
+  </div>
+</header>
+
+<div class="strip">
+  <span class="mock-badge">Local-first build 01</span>
+  <p id="stripText">Capture, plan, move work, review the week, and keep the vault on this device.</p>
+  <button id="demoBadge" type="button" class="demo-chip" data-action="reset-demo" title="Sample data. Click to start empty." aria-label="Sample data — click to start from an empty vault">Demo data</button>
+  <span class="right" id="saveStatus"><svg class="ico"><use href="#i-lock"/></svg>Saved locally</span>
+</div>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-group">
+      <div class="rail-label">Workspace</div>
+      <button class="rail-link active" data-view="today" id="railToday"><svg class="ico"><use href="#i-sun"/></svg>Today<span id="todayCount">0</span></button>
+      <button class="rail-link" id="inboxBtn"><svg class="ico"><use href="#i-inbox"/></svg>Inbox<span id="inboxCount">0</span></button>
+      <button class="rail-link" data-view="board" id="railBoard"><svg class="ico"><use href="#i-board"/></svg>Board</button>
+      <button class="rail-link" id="reviewBtn"><svg class="ico"><use href="#i-review"/></svg>Weekly review</button>
+    </div>
+    <div class="rail-group">
+      <div class="rail-label">Projects<button id="addProjectBtn" aria-label="Add project"><svg class="ico"><use href="#i-plus"/></svg></button></div>
+      <div id="railProjects"></div>
+    </div>
+    <div class="rail-group">
+      <div class="rail-label">Areas</div>
+      <div id="railAreas"></div>
+    </div>
+    <div class="local-vault">
+      <div class="local-vault-head"><svg class="ico"><use href="#i-shield"/></svg>Local vault</div>
+      <p>Tasks, projects, and reviews live in this browser. Works offline. No account, no tracking.</p>
+      <p id="vaultExport">No backup yet · keep a copy outside this browser</p>
+      <div class="vault-actions">
+        <button id="exportBtn"><svg class="ico"><use href="#i-download"/></svg>Export</button>
+        <button id="importBtn"><svg class="ico"><use href="#i-upload"/></svg>Import</button>
+        <button id="remindBtn" data-action="toggle-reminders" aria-pressed="false" title="A heads-up notification when the vault opens"><svg class="ico"><use href="#i-review"/></svg><span>Remind daily</span></button>
+        <button id="demoResetBtn" data-action="reset-demo" hidden title="Swap the demo for an empty vault"><svg class="ico"><use href="#i-trash"/></svg><span>Start empty</span></button>
+      </div>
+      <input type="file" id="importInput" accept="application/json" hidden>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="workspace-head">
+      <div class="cover">
+        <span class="cover-note"><i></i>Living workspace · active project</span>
+        <span class="cover-mark"><svg class="ico"><use href="#i-cairn"/></svg>Pathstone · local-first</span>
+      </div>
+      <div class="project-head">
+        <div class="project-icon"><svg class="ico"><use href="#i-cairn"/></svg></div>
+        <div class="project-title">
+          <h1 id="workspaceTitle">Pathstone v1 — Launch</h1>
+          <p id="workspaceDesc"></p>
+        </div>
+        <div class="project-meta">
+          <div class="project-stat"><b id="workspaceProgress">0%</b><span>complete</span></div>
+          <div class="project-stat"><b id="workspaceOpen">0</b><span>open tasks</span></div>
+          <div class="project-stat"><b id="workspaceTarget">—</b><span>target</span></div>
+        </div>
+      </div>
+      <div class="project-bar">
+        <span class="pill accent"><i style="--dot:var(--accent)"></i><span id="workspaceStatus">In progress</span></span>
+        <span class="pill"><i style="--dot:var(--green)"></i>Local-first</span>
+        <span class="pill"><i style="--dot:var(--yellow)"></i>Desktop first</span>
+        <span class="pill">Owner · <span id="workspaceOwner">Prince</span></span>
+        <div class="right">
+          <button class="project-open" id="editProjectBtn"><svg class="ico"><use href="#i-edit"/></svg>Edit project</button>
+          <button class="project-open" data-view="project">Project page<svg class="ico"><use href="#i-arrow"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <section class="view active" id="view-today" aria-label="Today">
+      <div class="today-layout">
+        <div>
+          <div class="day-head">
+            <div>
+              <span class="eyebrow" id="todayEyebrow"></span>
+              <h2>Today</h2>
+              <p>Three things matter. The rest can wait.</p>
+            </div>
+            <div class="day-stats">
+              <div class="day-stat"><b id="todayDone">0</b><span>done</span></div>
+              <div class="day-stat"><b id="todayFocus">0m</b><span>focus</span></div>
+              <div class="day-stat"><b id="todayOverdue">0</b><span>overdue</span></div>
+            </div>
+          </div>
+
+          <form class="capture" id="captureForm">
+            <svg class="ico"><use href="#i-plus"/></svg>
+            <input type="text" id="captureInput" aria-label="Capture a task" placeholder="What is still circling your mind?" autocomplete="off">
+            <button type="submit">Capture</button>
+          </form>
+          <p class="capture-hint">It lands in your inbox. No decisions needed right now.</p>
+
+          <div class="section-head"><h3>Top three</h3><span>Protect these</span></div>
+          <div class="panel top-three" id="topThree"></div>
+
+          <div class="section-head"><h3>Also today</h3><span id="alsoCount">0 tasks</span></div>
+          <div class="panel top-three" id="alsoToday"></div>
+
+          <div class="section-head"><h3>Momentum</h3><span>Graphs that answer “how is it going?”</span></div>
+          <div class="momentum">
+            <section class="momentum-card focus">
+              <div class="momentum-head"><h3>Focus this week</h3><span id="focusWeekRange">Mon–Sun</span></div>
+              <div class="momentum-value"><b id="focusTotal">0m</b><span id="focusDelta"></span></div>
+              <div class="week-bars" id="focusBars" aria-label="Focus hours this week"></div>
+              <div class="bar-legend"><span id="focusToday">0m today</span><span id="focusGoal">Goal 15h</span></div>
+              <div class="focus-run">
+                <button id="focusRunBtn" type="button" data-action="focus-run" title="Times while you work; the minutes land in this week when you stop">
+                  <svg class="ico"><use href="#i-clock"/></svg><span id="focusRunLabel">Start focus</span>
+                </button>
+                <span class="clock" id="focusClock">—</span>
+              </div>
+            </section>
+            <section class="momentum-card projects">
+              <div class="momentum-head"><h3>Projects</h3><span>In flight</span></div>
+              <div class="proj-list" id="momentumProjects"></div>
+              <div class="proj-foot"><span id="activeProjectCount">0 active this week</span><button id="allProjectsBtn">All projects<svg class="ico"><use href="#i-arrow"/></svg></button></div>
+            </section>
+          </div>
+
+          <section class="panel flow-panel">
+            <div class="flow-head">
+              <h3>Project flow</h3>
+              <button class="open" data-view="board">Open board<svg class="ico"><use href="#i-arrow"/></svg></button>
+            </div>
+            <div class="flow-cols" id="flowCols"></div>
+          </section>
+        </div>
+
+        <aside class="today-rail">
+          <section class="panel daily-pane">
+            <div class="pane-head"><h2>Today’s shape</h2><span id="shapeCapacityLabel"></span></div>
+            <div class="shape-top">
+              <div class="ring" id="shapeRing" style="--p:0"><div class="ring-text"><b id="shapePct">0%</b><span>of 8h</span></div></div>
+              <div class="shape-legend">
+                <div class="shape-line"><i style="--dot:#e08a6b"></i>Focus<b id="shapeFocus">0m</b></div>
+                <div class="shape-line"><i style="--dot:#8fc3a3"></i>Meetings<b id="shapeMeetings">0m</b></div>
+                <div class="shape-line"><i style="--dot:#e7c76a"></i>Buffer<b id="shapeBuffer">0m</b></div>
+              </div>
+            </div>
+            <div class="mini-cal">
+              <div class="cal-labels">
+                <span style="top:0">09:00</span>
+                <span style="top:52px">12:00</span>
+                <span style="top:104px">15:00</span>
+                <span style="top:156px">18:00</span>
+              </div>
+              <div class="cal-body" id="miniCal"></div>
+            </div>
+            <div class="loop-close">
+              <span class="loop-icon"><svg class="ico"><use href="#i-review"/></svg></span>
+              <div class="loop-close-text"><b>Close the loops</b><span>5 min · clear inbox, choose tomorrow’s first task</span></div>
+              <button id="closeLoopsBtn">Begin<svg class="ico"><use href="#i-arrow"/></svg></button>
+            </div>
+            <button class="review-row" id="reviewRow">
+              <svg class="ico"><use href="#i-review"/></svg>
+              <span><b>Weekly review</b><span>Wins, blockers, next week</span></span>
+              <span class="review-time" id="reviewTime">Not started</span>
+            </button>
+          </section>
+
+          <section class="panel plan-check">
+            <div class="plan-head">
+              <div class="plan-title"><svg class="ico"><use href="#i-spark"/></svg>Plan check</div>
+              <span class="local-badge">On device</span>
+            </div>
+            <div class="plan-score">
+              <div class="ring small" id="planRing" style="--p:0"><div class="ring-text"><b id="planScore">0</b><span>score</span></div></div>
+              <div class="plan-score-copy"><b id="planTitle">Reading the day</b><span id="planSubtitle"></span><em id="planReady"></em></div>
+            </div>
+            <div class="plan-suggestions" id="planSuggestions"></div>
+            <div class="plan-insight" id="planInsight"><svg class="ico"><use href="#i-calendar"/></svg><span></span></div>
+            <div class="energy-head"><span>Energy map</span><b>Peak 09:00–12:00</b></div>
+            <svg class="energy-svg" viewBox="0 0 280 60" preserveAspectRatio="none" role="img" aria-label="Energy peaks in the morning and dips after lunch">
+              <path class="energy-area" d="M0,47 C17,45 27,22 45,20 S73,39 92,27 114,9 135,12 160,42 183,32 206,10 229,18 255,34 280,22 L280,60 L0,60 Z"/>
+              <line class="energy-peak" x1="135" y1="0" x2="135" y2="60"/>
+              <path class="energy-line" d="M0,47 C17,45 27,22 45,20 S73,39 92,27 114,9 135,12 160,42 183,32 206,10 229,18 255,34 280,22"/>
+            </svg>
+            <div class="energy-axis"><span>08:00</span><span>12:00</span><span>16:00</span><span>19:00</span></div>
+            <div class="plan-foot">
+              <span id="planFoot">Local rules · no cloud</span>
+              <button id="applyPlanBtn"><svg class="ico"><use href="#i-spark"/></svg><span>Apply moves</span></button>
+            </div>
+          </section>
+          <div class="local-note"><svg class="ico"><use href="#i-lock"/></svg><span id="localNote">Saved locally · nothing leaves this device</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view board-page" id="view-board" aria-label="Board">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow" id="boardEyebrow">Project board</span>
+          <h2>Flow</h2>
+          <p>Shape the work visually. Drag cards between columns; every move is saved.</p>
+        </div>
+        <div class="page-head-meta">
+          <div><b id="boardOpen">0</b><span>open</span></div>
+          <div><b id="boardOverdue">0</b><span>overdue</span></div>
+          <div><b id="boardComplete">0%</b><span>complete</span></div>
+        </div>
+      </div>
+      <div class="board-toolbar">
+        <button class="chip active" data-action="board-filter" data-filter="all">All cards</button>
+        <button class="chip" data-action="board-filter" data-filter="high">High priority</button>
+        <button class="chip" data-action="project-palette"><i class="dot" id="boardProjectDot"></i><span id="boardProjectChip">Project</span></button>
+        <div class="toolbar-right">
+          <button class="chip" data-action="toggle-archive" id="archiveChip">Archive</button>
+          <button class="primary-btn" data-action="new-task"><svg class="ico"><use href="#i-plus"/></svg>New card</button>
+        </div>
+      </div>
+      <div class="board" id="board"></div>
+      <div class="board-foot"><span id="boardCount">0 columns · 0 cards</span><span class="right"><svg class="ico"><use href="#i-lock"/></svg>Saved locally</span></div>
+    </section>
+
+    <section class="view project-page" id="view-project" aria-label="Project">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow" id="projectEyebrow">Project page</span>
+          <h2>Brief</h2>
+          <p>The durable context behind the board. One page, no scavenger hunt.</p>
+        </div>
+        <div class="page-head-meta">
+          <div><b id="projectComplete">0%</b><span>complete</span></div>
+          <div><b id="projectReqCount">0</b><span>requirements</span></div>
+          <div><b id="projectTarget">—</b><span>target</span></div>
+        </div>
+      </div>
+      <div class="project-grid" id="projectContent"></div>
+    </section>
+  </main>
+</div>
+
+<footer class="page-foot">
+  <span>Pathstone · local-first build 01</span>
+  <span class="sep">/</span>
+  <span>Living Workspace hybrid</span>
+  <span class="sep">/</span>
+  <span>Dusk, Warm, Paper, Ink</span>
+  <span class="right"><svg class="ico"><use href="#i-lock"/></svg>No data leaves this device</span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="palette-wrap" id="paletteWrap" hidden>
+  <div class="palette" role="dialog" aria-modal="true" aria-labelledby="paletteTitle">
+    <div class="palette-head">
+      <svg class="ico"><use href="#i-search"/></svg>
+      <input id="paletteInput" type="text" placeholder="Search tasks, projects, or actions" autocomplete="off" aria-label="Search tasks and projects">
+      <button class="modal-close" data-close aria-label="Close search"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="palette-results" id="paletteResults"></div>
+    <div class="palette-foot"><span id="paletteTitle">Search</span><span><kbd>↑</kbd><kbd>↓</kbd> move · <kbd>↵</kbd> open · <kbd>esc</kbd> close</span></div>
+  </div>
+</div>
+
+<div class="drawer-wrap" id="inboxWrap" hidden>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="inboxTitle">
+    <div class="drawer-head">
+      <div><span class="eyebrow">Unsorted</span><h2 id="inboxTitle">Inbox</h2><p>Clear it in one pass. Give each thought a home.</p></div>
+      <button class="modal-close" data-close aria-label="Close inbox"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form class="capture inbox-capture" id="inboxForm">
+      <svg class="ico"><use href="#i-plus"/></svg>
+      <input type="text" id="inboxInput" aria-label="Capture to inbox" placeholder="Add another thought" autocomplete="off">
+      <button type="submit">Capture</button>
+    </form>
+    <div class="drawer-body" id="inboxList"></div>
+    <div class="drawer-foot"><span id="inboxFoot">Nothing leaves this device.</span><button class="btn" data-action="open-review">Weekly review</button></div>
+  </aside>
+</div>
+
+<div class="modal-wrap" id="firstRunModal" hidden>
+  <div class="modal small" role="dialog" aria-modal="true" aria-labelledby="firstRunTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Welcome</span><h2 id="firstRunTitle">Start quiet</h2></div>
+      <button class="modal-close" data-close aria-label="Close welcome"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-intro">Begin with a blank vault, or look around a demo workspace first. You can swap between them anytime — the demo is a sandbox until you keep it.</p>
+      <div class="first-run-choices">
+        <button type="button" data-action="first-run-demo"><b>Explore the demo workspace</b><span>Sample projects, a week of history, nothing real. Swap to empty whenever you like.</span></button>
+        <button type="button" data-action="first-run-empty"><b>Start empty</b><span>A blank vault. No sample data, no noise — just what you put in.</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="taskModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Task</span><h2 id="taskModalTitle">New task</h2></div>
+      <button class="modal-close" data-close aria-label="Close task"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form id="taskForm">
+      <div class="modal-body">
+        <p class="form-error" id="taskError" hidden></p>
+        <label class="field wide"><span>Title</span><input id="taskTitle" name="title" type="text" maxlength="180" required placeholder="What needs to move?"></label>
+        <div class="form-grid">
+          <label class="field"><span>Project</span><select id="taskProject" name="project"></select></label>
+          <label class="field"><span>Status</span><select id="taskStatus" name="status">
+            <option value="inbox">Inbox</option>
+            <option value="backlog">Backlog</option>
+            <option value="designing">Designing</option>
+            <option value="building">Building</option>
+            <option value="review">Review</option>
+            <option value="done">Done</option>
+          </select></label>
+          <label class="field"><span>Priority</span><select id="taskPriority" name="priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select></label>
+          <label class="field"><span>Estimate · minutes</span><input id="taskEstimate" name="estimate" type="number" min="0" step="5" value="30"></label>
+          <label class="field"><span>Due</span><input id="taskDue" name="due" type="date"></label>
+          <label class="field"><span>Top three slot</span><select id="taskTop" name="top">
+            <option value="0">Not pinned</option>
+            <option value="1">Priority 01</option>
+            <option value="2">Priority 02</option>
+            <option value="3">Priority 03</option>
+          </select></label>
+          <label class="field"><span>Repeat</span><select id="taskRepeat" name="repeat">
+            <option value="none">Never</option>
+            <option value="daily">Daily</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="weekly">Weekly</option>
+          </select></label>
+          <label class="field wide"><span>Tags · comma separated</span><input id="taskTags" name="tags" type="text" placeholder="Design, Research"></label>
+        </div>
+        <div class="field wide">
+          <span>Checklist</span>
+          <div class="subtask-list" id="subtaskList"></div>
+          <div class="inline-add"><input id="subtaskInput" type="text" placeholder="Add a checklist item" autocomplete="off"><button type="button" class="btn small" id="addSubtaskBtn">Add</button></div>
+        </div>
+        <label class="field wide"><span>Notes</span><textarea id="taskNotes" name="notes" rows="4" placeholder="Context, links, or the next physical action"></textarea></label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn danger" id="deleteTaskBtn"><svg class="ico"><use href="#i-trash"/></svg>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Save task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-wrap" id="projectModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Project</span><h2 id="projectModalTitle">New project</h2></div>
+      <button class="modal-close" data-close aria-label="Close project"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form id="projectForm">
+      <div class="modal-body">
+        <p class="form-error" id="projectError" hidden></p>
+        <label class="field wide"><span>Name</span><input id="projectName" type="text" maxlength="120" required placeholder="A project with an edge"></label>
+        <label class="field wide"><span>Description</span><textarea id="projectDescription" rows="3" placeholder="Why does this exist? What does done look like?"></textarea></label>
+        <div class="form-grid">
+          <label class="field"><span>Area</span><input id="projectArea" type="text" value="Work"></label>
+          <label class="field"><span>Owner</span><input id="projectOwner" type="text" value="Prince"></label>
+          <label class="field"><span>Target</span><input id="projectTargetInput" type="date"></label>
+          <label class="field"><span>Color</span><input id="projectColor" type="color" value="#e08a6b"></label>
+          <label class="field wide"><span>Status</span><select id="projectStatus">
+            <option>In progress</option>
+            <option>Planning</option>
+            <option>Paused</option>
+            <option>Done</option>
+          </select></label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Save project</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-wrap" id="reviewModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Weekly review</span><h2 id="reviewTitle">Close the week</h2></div>
+      <button class="modal-close" data-close aria-label="Close review"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form id="reviewForm">
+      <div class="modal-body">
+        <p class="modal-intro" id="reviewIntro">Three honest lines. Then the week is closed.</p>
+        <label class="field wide"><span>What moved?</span><textarea id="reviewWins" rows="3" placeholder="Wins, finished work, moments of clarity"></textarea></label>
+        <label class="field wide"><span>What is stuck?</span><textarea id="reviewBlockers" rows="3" placeholder="Friction, open loops, decisions avoided"></textarea></label>
+        <label class="field wide"><span>What matters next week?</span><textarea id="reviewNext" rows="3" placeholder="One direction, not a wish list"></textarea></label>
+        <div class="review-history" id="reviewHistory"></div>
+      </div>
+      <div class="modal-foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Save review</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-wrap" id="shutdownModal" hidden>
+  <div class="modal small" role="dialog" aria-modal="true" aria-labelledby="shutdownTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Close the loops</span><h2 id="shutdownTitle">Five-minute shutdown</h2></div>
+      <button class="modal-close" data-close aria-label="Close shutdown"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form id="shutdownForm">
+      <div class="modal-body">
+        <div class="shutdown-summary" id="shutdownSummary"></div>
+        <label class="check-row"><input type="checkbox" id="shutdownInbox" checked> Inbox is empty enough</label>
+        <label class="check-row"><input type="checkbox" id="shutdownTomorrow"> Tomorrow has a first task</label>
+        <label class="check-row"><input type="checkbox" id="shutdownCalendar" checked> Calendar checked for surprises</label>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-close>Not yet</button>
+        <span class="spacer"></span>
+        <button type="submit" class="btn primary">Finish shutdown</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-wrap" id="docModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="docModalTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Working doc</span><h2 id="docModalTitle">Note</h2></div>
+      <button class="modal-close" data-close aria-label="Close note"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form id="docForm">
+      <div class="modal-body">
+        <label class="field wide"><span>Title</span><input id="docTitle" type="text" required maxlength="120"></label>
+        <label class="field wide"><span>Body</span><textarea id="docBody" rows="13" placeholder="Durable context lives here."></textarea></label>
+      </div>
+      <div class="modal-foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Save note</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/core.js" defer></script>
+<script src="js/seed.js" defer></script>
+<script src="js/render.js" defer></script>
+<script src="js/views.js" defer></script>
+<script src="js/actions.js" defer></script>
+<script src="js/events.js" defer></script>
+</body>
+</html>

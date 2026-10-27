@@ -1,0 +1,11 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# legacy design artifacts kept locally, not part of the shipping app
+/_app.js
+/_body.html
+/mock.html
