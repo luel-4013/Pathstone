@@ -4,6 +4,13 @@ npm-debug.log*
 .idea/
 .vscode/
 *.swp
+*.log
+
+# local runtime data (sibling-project convention: data/ + SQLite sidecars)
+data/
+*.db
+*.db-wal
+*.db-shm
 
 # legacy design artifacts kept locally, not part of the shipping app
 /_app.js

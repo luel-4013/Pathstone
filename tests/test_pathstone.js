@@ -22,21 +22,26 @@ const t = (name, condition) => {
   console.log((condition ? '  ✓ ' : '  ✗ ') + name);
 };
 
-(async () => {
-  const vc = new VirtualConsole();
-  const errors = [];
-  vc.on('jsdomError', (e) => errors.push(String(e.message || e)));
-  vc.on('error', (...args) => errors.push(args.join(' ')));
-
-  // Inline the modules (document order preserved) so the harness has no
-  // network dependency. `$` must be escaped in replacement strings or
-  // `const $$` gets mangled into `const $` by String.replace.
+/* Inline the modules (document order preserved) so the harness has no
+ * network dependency. `$` must be escaped in replacement strings or
+ * `const $$` gets mangled into `const $` by String.replace. */
+function buildHtml() {
   let html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   for (const name of ['core', 'db', 'seed', 'render', 'views', 'actions', 'events']) {
     const source = fs.readFileSync(path.join(ROOT, 'js', `${name}.js`), 'utf8');
     const escaped = source.replace(/\$/g, '$$$$');
     html = html.replace(`<script src="js/${name}.js" defer></script>`, `<script>${escaped}</script>`);
   }
+  return html;
+}
+
+(async () => {
+  const vc = new VirtualConsole();
+  const errors = [];
+  vc.on('jsdomError', (e) => errors.push(String(e.message || e)));
+  vc.on('error', (...args) => errors.push(args.join(' ')));
+
+  const html = buildHtml();
 
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
@@ -318,6 +323,92 @@ const t = (name, condition) => {
   })()`);
   t('midnight rollover restarts the day view', rollover.changed && rollover.booted && rollover.after !== rollover.before && /new day/.test(rollover.after));
   t('rollover is a no-op within the same day', S(`(function(){ const boot = dayBooted; const toastBefore = document.getElementById('toast').textContent; const changed = checkDayRollover(); return { changed, boot, toastBefore, after: document.getElementById('toast').textContent }; })()`).changed === false);
+
+  // ---- Round-4: SQLite server mode — full client boot against a mock API ----
+
+  {
+    const mem = { vault: null, snapshots: [] };
+    const fetchMock = function mockFetch(url, options = {}) {
+      return new Promise((resolve) => {
+        const done = (status, body) => resolve({ ok: status < 400, status, async json() { return body; } });
+        const path = String(url);
+        if (path === '/api/vault') {
+          if (options.method === 'PUT') {
+            const data = JSON.parse(options.body);
+            mem.vault = { savedAt: data.savedAt || 'now', state: data.state };
+            return done(200, { savedAt: mem.vault.savedAt });
+          }
+          return done(200, { record: mem.vault });
+        }
+        if (path === '/api/snapshots') {
+          if (options.method === 'POST') {
+            const data = JSON.parse(options.body);
+            mem.snapshots.push({ id: data.id || 'snap-mock', kind: data.kind, savedAt: data.savedAt || 'now', state: data.state });
+            return done(200, { id: data.id });
+          }
+          return done(200, { records: mem.snapshots.map(({ id, kind, savedAt }) => ({ id, kind, savedAt })) });
+        }
+        if (path.startsWith('/api/snapshots/')) {
+          const id = decodeURIComponent(path.replace('/api/snapshots/', ''));
+          if (options.method === 'DELETE') {
+            mem.snapshots = mem.snapshots.filter((snap) => snap.id !== id);
+            return done(200, { deleted: true });
+          }
+          const record = mem.snapshots.find((snap) => snap.id === id) || null;
+          return done(200, { record: record ? { id: record.id, kind: record.kind, savedAt: record.savedAt, state: record.state } : null });
+        }
+        return done(404, { error: 'not found' });
+      });
+    };
+
+    const vc2 = new VirtualConsole();
+    const errors2 = [];
+    vc2.on('jsdomError', (e) => errors2.push(String(e.message || e)));
+    vc2.on('error', (...args) => errors2.push(args.join(' ')));
+    const fdb = require('fake-indexeddb');
+    const dom2 = new JSDOM(buildHtml(), {
+      runScripts: 'dangerously',
+      pretendToBeVisual: true,
+      url: 'http://localhost/index.html',
+      virtualConsole: vc2,
+      beforeParse(win2) {
+        win2.confirm = () => true;
+        win2.alert = () => {};
+        win2.URL.createObjectURL = win2.URL.createObjectURL || (() => 'blob:mock');
+        win2.indexedDB = new fdb.IDBFactory();
+        win2.IDBKeyRange = fdb.IDBKeyRange;
+        win2.__mockServer = mem;
+        win2.fetch = fetchMock;
+      }
+    });
+    const w2 = dom2.window;
+    const S2 = (expr) => w2.eval(expr);
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => { if (!settled) { settled = true; resolve(); } };
+      if (S2('typeof state') !== 'undefined') return finish();
+      w2.addEventListener('load', () => w2.setTimeout(finish, 900));
+      w2.setTimeout(finish, 6000);
+    });
+    await new Promise((r) => w2.setTimeout(r, 250));
+
+    t('server tier wins at boot', S2('dbMode') === 'server' && S2('dbFailed') === false);
+    await S2('flushDbSave()');
+    const mockVault = S2('window.__mockServer.vault ? JSON.stringify(window.__mockServer.vault.state.projects) : "null"');
+    t('vault written through the SQLite API path', mockVault !== 'null' && JSON.parse(mockVault).length === 4);
+    t('mock recorded a server-side savedAt', Boolean(S2('window.__mockServer.vault && window.__mockServer.vault.savedAt')));
+    const mockAuto = S2('window.__mockServer.snapshots.some((s) => s.kind === "auto")');
+    t('daily snapshot stored server-side', mockAuto === true);
+    const mockKey = await S2(`writeSnapshotToDb('manual', state)`);
+    t('manual snapshot reaches the server', S2('window.__mockServer.snapshots.some((s) => s.kind === "manual")') === true);
+    S2('state.tasks.push({ id: "svjunk", title: "junk", status: "backlog", estimate: 0, top: 0, due: null, notes: "", completedAt: null, completedFrom: null, repeat: "none", createdAt: new Date().toISOString(), subtasks: [], tags: [], archived: false, projectId: null, priority: "low", cover: null })');
+    await S2('flushDbSave()');
+    await S2(`restoreSnapshot("${String(mockKey)}")`);
+    t('restore through the API rewinds tasks', S2('state.tasks.some((t) => t.id === "svjunk")') === false);
+    t('safety catch stored server-side', S2('window.__mockServer.snapshots.some((s) => s.kind === "pre")') === true);
+    const realErrors2 = errors2.filter((line) => !/navigation|Could not load|Not implemented/i.test(line));
+    t(`no runtime errors in server mode (${realErrors2.length})`, realErrors2.length === 0);
+  }
 
   const realErrors = errors.filter((line) => !/navigation|Could not load|Not implemented/i.test(line));
   t(`no runtime errors (${realErrors.length})`, realErrors.length === 0);

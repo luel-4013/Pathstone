@@ -109,7 +109,7 @@ after both flows.
 
 ---
 
-## Verification
+## Verification (v0.2)
 
 - Suite grew to **82 passing assertions** — new coverage: vault lives in the
   database and flushes, daily-snapshot stamp, manual snapshot → junk task →
@@ -119,3 +119,85 @@ after both flows.
   rejection surfaces, snapshot flow no-ops when down.
 - All modules pass syntax checks; service worker keeps the new module in its
   offline cache with a bumped cache generation.
+
+---
+
+## The SQLite server — how the vault became a real database file (v0.3)
+
+*Added at the owner's request: "localStorage is not a database — give me a
+proper `.db` file like the sibling projects." The answer is a three-tier
+design with newest-wins reconciliation.*
+
+### The architecture in three lines
+
+1. **SQLite** — `data/pathstone.db` (WAL-journaled), owned by a
+   dependency-free `server.py` that serves the app plus a small JSON API.
+   This is the durable file database.
+2. **IndexedDB** — the automatic fallback when the server is not running
+   (plain static hosting, GH Pages clone). Same API surface, same snapshot
+   semantics.
+3. **localStorage mirror** — synchronous and instant, so even a crash
+   mid-write cannot lose the newest change.
+
+On boot all reachable copies are compared by timestamp; the newest becomes
+the state and is pushed into every other reachable tier, so the engines
+converge instead of silently diverging.
+
+### Issues caught and fixed the day this shipped
+
+1. **A service-worker tripwire nearly froze the vault in the past.** The
+   offline cache intercepts same-origin GETs — including `GET /api/vault` —
+   and stale-while-revalidate would happily keep serving yesterday's vault
+   forever. `Fixed pre-ship`: the fetch handler passes every `/api/*` request
+   straight through; a cache generation bump ships the fix.
+
+2. **The snapshot identity split-brain.** The IndexedDB path generated
+   snapshot ids in the client; the server path expected the caller to send
+   one — and faithfully returned `undefined` as the id when it was not
+   there. Cross-engine restore then bailed with a misleading "snapshot not
+   found". **Caught by the mock-server regression test before ship**: the
+   client now generates ids with one shared rule for both engines. This is
+   the exact failure the mock-API harness exists to catch.
+
+3. **Three generations of truth.** With three storage tiers, a crash can
+   leave each one holding a different version. `Fixed pre-ship`: boot-time
+   newest-wins across all reachable tiers plus a convergence push — the
+   winner is written back to the others rather than trusted one-sidedly.
+
+4. **The last write before an unload.** A debounced write meets a rarely
+   fired unload on some platforms. `Mitigated`: `pagehide` is registered
+   too, the flush uses fetch `keepalive` in server mode, and the instant
+   mirror carries any residue for the newest-wins rule to finish at next
+   boot.
+
+5. **Server hardening.** Parameterized SQL only, WAL + busy timeout for
+   multi-threaded/multi-tab writes, request-body size cap, hostile snapshot
+   ids rejected, path traversal blocked — and the one that would have been
+   embarrassing: **the `.db` file itself is not web-served** (the data
+   directory answers 403). The server binds to localhost only.
+
+### Honest residuals
+
+1. **No server, no file.** On pure static hosting the vault lives in
+   IndexedDB, honestly flagged in the UI. A `.db` file on disk exists only
+   while the local server runs — that is what the file is.
+2. **Multi-tab is last-write-wins.** WAL keeps the file consistent, but two
+   concurrent tabs may race through the debounce window. Multi-device
+   remains owner-shelved; single-device multi-tab is a single-player edge.
+3. **`data/` stays out of git** (sibling convention: `data/`, `*.db`,
+   `*.db-wal`, `*.db-shm`). It is runtime data; export JSON remains the
+   portable artifact — the only file that is human-readable by design.
+
+### Verification (v0.3)
+
+- **90 jsdom assertions**, including a full server-mode client boot against
+  a mock API: tier selection at boot, vault written through the API path,
+  daily + manual snapshots stored server-side, restore through the API with
+  a server-side safety catch, zero runtime errors in server mode.
+- **20 integration assertions** against the real `server.py` and a disposable
+  `.db`: schema bootstrap, file created with `.db` extension, vault round
+  trip, snapshot store/list/fetch/delete, 400s on hostile input, 404 on
+  unknown API routes, 403 on traversal and on the database file itself.
+- Syntax checks pass on every module, both test files, and `server.py`;
+  a live smoke test confirmed `data/pathstone.db` + WAL sidecars appear on
+  first boot.

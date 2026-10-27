@@ -46,42 +46,46 @@ service worker has cached it.
 
 ## Quick start
 
-Serving over HTTP is required (`file://` can silently block storage in some
-browsers). Any static file server works:
+Persistent mode (the real database):
 
 ```bash
-python3 -m http.server 8247 --bind 127.0.0.1
-# or: npx serve .
-# or: caddy file-server --listen :8247
+python3 server.py        # or: npm start
+# opens http://127.0.0.1:8247
+# creates data/pathstone.db — a real SQLite file with WAL sidecars
 ```
 
-Then open `http://127.0.0.1:8247`. First run asks: explore the demo, or start
-empty.
+Offline-only mode: any static file server still works (`npm run start:static`,
+`npx serve .`) — the vault then lives in IndexedDB and the UI says so
+honestly. Serving over HTTP is required; `file://` can silently block
+storage in some browsers.
 
 If storage is not available in your browser context, the save pill says
 **Storage unavailable** in plain words — the app will not pretend to save.
 
 ## Data & privacy
 
-- The vault's durable home is a real **IndexedDB database** (`pathstone-db`)
-  inside your browser: transactional, no size cap of practical concern at
-  personal scale, and fully on-device. Your browser's fast string storage
-  (`localStorage`, key `pathstone-vault-v1`) stays as a synchronous mirror —
-  on boot the copy with the newer timestamp wins, so a crash between the two
-  never rolls your work back.
-- **Export / Import** your whole vault as a JSON file from the vault card.
-  Export is the cross-browser/cross-device survival story; the card nudges
-  you when the last export is ~two weeks old.
-- **Backups** (vault card → Backups): automatic daily snapshots of the
-  vault, manual "back up now" snapshots, and safety catches taken before
-  every restore/import — restore any of them with one confirm.
-- Clearing the browser's site data deletes the database **and** the mirror —
-  export first.
-- Saving is dual-write by design: the mirror takes every change instantly,
-  the database follows within 400 ms, and an unload flush covers the gap.
-- If storage is blocked or the database refuses to open, the app says so in
-  plain words (**Storage unavailable** / **database off**) — it never
-  pretends to save.
+Three storage tiers, newest-wins at boot, fully on-device:
+
+1. **SQLite file** — `data/pathstone.db` (created by the local server):
+   transactional, WAL-journaled, lives on your disk, backed by WAL/SHM
+   sidecars. This is the database. The `data/` directory is never committed.
+2. **IndexedDB** (key `pathstone-db`) — on-device fallback when the server
+   is not running. Vaults migrate across tiers automatically; a vault that
+   exists only in the fallback tier moves into SQLite the first time the
+   server meets it.
+3. **localStorage mirror** (key `pathstone-vault-v1`) — synchronous and
+   instant; a crash between the other two tiers can never lose the last
+   change, and boot-time reconciliation converges everything.
+
+- **Backups** (vault card → Backups): automatic daily snapshots, manual
+  "back up now", and safety catches before every restore/import — restore
+  any of them with one confirm. Newest 14 daily snapshots kept (30 total).
+- **Export / Import** JSON from the vault card: the portable, human-readable
+  file (`Downloads/pathstone-vault-<date>.json`), and the only thing that
+  crosses browsers or devices. Export nudges when stale (~2 weeks).
+- Clearing site data still deletes every tier — export first.
+- If storage is blocked, the save pill reads **Database unreachable** or
+  **Storage unavailable** in plain words. It never pretends to save.
 
 ## Offline & install
 
@@ -106,7 +110,7 @@ developer test suite (jsdom) that boots the real app and checks behavior:
 
 ```bash
 npm install      # installs jsdom + fake-indexeddb as dev dependencies only
-npm test         # runs the full assertion suite (82 checks)
+npm test         # 90 jsdom assertions + 20 real-server integration assertions
 ```
 
 Notes on the harness live in `tests/test_pathstone.js` — including the two
@@ -119,15 +123,17 @@ when injecting code via `String.replace`).
 index.html            — the single page (all views/overlays live here)
 styles.css            — the whole visual system
 manifest.webmanifest  — PWA install metadata
-sw.js                 — offline cache (stale-while-revalidate + shell fallback)
+sw.js                 — offline cache (stale-while-revalidate; API passthrough)
+server.py             — stdlib-only local server: static files + the vault API
+data/                 — runtime SQLite database (pathstone.db + WAL sidecars)
 js/core.js            — state helpers, time math, plan check, themes, save flow
-js/db.js              — the IndexedDB layer: vault record + snapshot store + prune
+js/db.js              — the database layer: SQLite(server) / IndexedDB / mirror
 js/seed.js            — seed data, blank-vault factory, import validation
 js/render.js          — chrome + dashboard rendering
 js/views.js           — lists, board, palette, week views
 js/actions.js         — every user action (capture, move, complete, repeat…)
 js/events.js          — init, bindings, keyboard, heartbeats, storage probe, boot
-tests/                — jsdom + fake-indexeddb suite (npm test)
+tests/                — jsdom suite + real-server API integration suite
 ```
 
 ## Documentation
@@ -135,9 +141,9 @@ tests/                — jsdom + fake-indexeddb suite (npm test)
 - `POSTMORTEM.md` — the product's failure post-mortems in reusable form:
   the first two deaths, what was fixed and proven, what was consciously
   shelved, and the blank template for running the same autopsy on anything.
-- `DB_POSTMORTEM.md` — the third autopsy, scoped to the database, backup and
-  restore feature: how it could die before it shipped, what was caught,
-  and what remains honest.
+- `DB_POSTMORTEM.md` — the third and fourth autopsies: how the IndexedDB +
+  backup feature could have died before shipping, and how the SQLite `.db`
+  release went from three storage tiers to a real caught-in-tests bug.
 
 ## Known limits (by design)
 

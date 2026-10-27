@@ -252,7 +252,8 @@ function flushDbSave() {
     dbSaveTimer = null;
   }
   if (dbFailed) return Promise.resolve(false);
-  return writeVaultToDb(state).then(() => {
+  /* keepalive: the final write before an unload must be allowed to fly */
+  return writeVaultToDb(state, null, { keepalive: true }).then(() => {
     updateSaveState();
     return true;
   }).catch(() => {

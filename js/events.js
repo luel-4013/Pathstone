@@ -367,6 +367,22 @@ function registerServiceWorker() {
 
 let dayBooted = null;
 
+/* Push the current state into both database tiers plus the mirror. Used at
+ * boot so every storage engine ends the boot holding the same generation. */
+function reconcileTiers(savedAt) {
+  const writes = [];
+  if (typeof window.fetch === 'function') {
+    writes.push(srvWriteVault(state, savedAt || new Date().toISOString()).catch(() => {}));
+  }
+  writes.push(idbWriteVault(state).catch(() => {}));
+  try {
+    localStorage.setItem(VAULT_KEY, JSON.stringify(state));
+  } catch (error) {
+    /* best effort — the next saveState retries */
+  }
+  return Promise.allSettled(writes);
+}
+
 function checkDayRollover() {
   const nowDay = todayKey();
   if (!dayBooted || dayBooted === nowDay) return false;
@@ -399,23 +415,35 @@ async function boot() {
   }
   ui.view = VIEWS.includes(window.location.hash.replace('#', '')) ? window.location.hash.replace('#', '') : 'today';
 
-  /* Open the database, then let the newer copy win: the mirror (instant,
-   * synchronous) can be one change ahead after a crash mid-write. */
+  /* Pick the live database tier (SQLite server > IndexedDB), then
+   * reconcile: the mirror is always instant; the upper tiers may hold a
+   * different generation. Newest savedAt wins and the winner is pushed
+   * into every other reachable tier, so the stores converge. */
   try {
-    const dbRecord = await readVaultFromDb();
+    await decideActiveTier();
     dbFailed = false;
-    const verdict = newerVaultCopy(dbRecord, state);
+    const dbRecord = await readVaultFromDb();
+    let bestRecord = dbRecord;
+    if (isServerMode()) {
+      /* server live? Its first adoption on a browser that already owns an
+       * IndexedDB vault must not strand the older store — newest wins. */
+      const idbRecord = await idbReadVault().catch(() => null);
+      if (idbRecord) bestRecord = newestOf(bestRecord, idbRecord);
+    }
+    const verdict = newerVaultCopy(bestRecord, state);
+    const mirrorAt = state.meta && state.meta.lastSaved ? state.meta.lastSaved : null;
     if (verdict === 'db') {
-      state = normalizeState(dbClone(dbRecord.state));
-    } else if (dbRecord) {
-      /* tie or mirror ahead: push the mirror into the database */
-      writeVaultToDb(state).catch(() => {});
+      state = normalizeState(dbClone(bestRecord.state));
+      reconcileTiers(bestRecord.savedAt);
+    } else if (bestRecord) {
+      /* tie, or mirror ahead after a crash: rebuild the tiers from it */
+      reconcileTiers(mirrorAt);
     } else if (storedVault && !storageBlocked) {
-      /* first boot with this database: migrate the old mirror across */
-      writeVaultToDb(state).then(() => showToast('Vault moved into the local database')).catch(() => {});
+      reconcileTiers(mirrorAt);
+      showToast(dbMode === 'server' ? 'Vault moved into the SQLite database' : 'Vault moved into the local database');
     }
   } catch (error) {
-    dbFailed = true; /* honest fallback: mirror-only mode */
+    dbFailed = true; /* honest fallback: mirror-only mode until next boot */
   }
 
   dayBooted = todayKey();

@@ -1,14 +1,15 @@
 {
   "name": "pathstone",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A calm, local-first workspace for tasks, projects, and a realistic day.",
   "license": "MIT",
   "author": "luel-4013",
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "python3 -m http.server 8247 --bind 127.0.0.1",
-    "test": "node tests/test_pathstone.js"
+    "start": "python3 server.py",
+    "start:static": "python3 -m http.server 8247 --bind 127.0.0.1",
+    "test": "node tests/test_pathstone.js && node tests/test_server_api.js"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.6",

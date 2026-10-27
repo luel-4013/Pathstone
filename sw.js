@@ -10,7 +10,7 @@
  * fall back to the index shell when a navigation cannot reach the network.
  */
 
-const CACHE = 'pathstone-cache-v2';
+const CACHE = 'pathstone-cache-v3';
 const SHELL = './index.html';
 const ASSETS = [
   './',
@@ -56,6 +56,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
+
+  /* Never touch the vault API: it must always reach the live SQLite server. */
+  if (url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
