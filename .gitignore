@@ -12,6 +12,9 @@ data/
 *.db-wal
 *.db-shm
 
+# python bytecode (server.py is stdlib; nothing compiled ships)
+__pycache__/
+
 # legacy design artifacts kept locally, not part of the shipping app
 /_app.js
 /_body.html
