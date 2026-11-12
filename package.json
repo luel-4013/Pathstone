@@ -4,6 +4,24 @@
   "description": "A calm, local-first workspace for tasks, projects, and a realistic day.",
   "license": "MIT",
   "author": "luel-4013",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luel-4013/Pathstone.git"
+  },
+  "bugs": {
+    "url": "https://github.com/luel-4013/Pathstone/issues"
+  },
+  "homepage": "https://github.com/luel-4013/Pathstone#readme",
+  "keywords": [
+    "local-first",
+    "offline-first",
+    "task-manager",
+    "planner",
+    "pwa",
+    "sqlite",
+    "vanilla-javascript",
+    "privacy"
+  ],
   "private": true,
   "type": "commonjs",
   "scripts": {

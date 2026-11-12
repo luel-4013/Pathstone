@@ -163,6 +163,39 @@ function buildHtml() {
 
   t('task modal has repeat select', Boolean(document.getElementById('taskRepeat')));
 
+  // Full calendar: month grid, day agenda, and event CRUD
+  S(`setView('calendar')`);
+  t('calendar tab activates its view', document.getElementById('view-calendar').classList.contains('active')
+    && document.getElementById('railCalendar').classList.contains('active'));
+  t('calendar renders a six-week month grid', document.querySelectorAll('#calendarGrid .calendar-day').length === 42);
+  t('calendar marks today', document.querySelectorAll('#calendarGrid .calendar-day.today').length === 1);
+  t('calendar agenda shows the seeded day', document.querySelectorAll('#calendarDayList .agenda-item').length > 0);
+  t('upcoming list shows the next two weeks', document.querySelectorAll('#calendarUpcoming .agenda-item').length > 0);
+
+  S(`openEvent(null, { date: ${JSON.stringify(todayKey)} })`);
+  document.getElementById('eventTitle').value = 'Calendar check';
+  document.getElementById('eventDate').value = addDays(todayKey, 2);
+  document.getElementById('eventStart').value = '13:00';
+  document.getElementById('eventEnd').value = '13:30';
+  S('saveEvent()');
+  const createdEvent = S(`state.events.find((event) => event.title === 'Calendar check')`);
+  t('event modal creates an event', Boolean(createdEvent) && createdEvent.date === addDays(todayKey, 2) && createdEvent.kind === 'focus');
+  S(`selectCalendarDay(${JSON.stringify(addDays(todayKey, 2))})`);
+  t('created event appears on its day', document.getElementById('calendarDayList').textContent.includes('Calendar check'));
+
+  S(`openEvent(${JSON.stringify(createdEvent && createdEvent.id)})`);
+  t('event modal prefills an existing event', document.getElementById('eventTitle').value === 'Calendar check'
+    && document.getElementById('eventDate').value === addDays(todayKey, 2));
+  document.getElementById('eventEnd').value = '12:00';
+  S('saveEvent()');
+  t('event end must follow start', document.getElementById('eventModal').hidden === false
+    && document.getElementById('eventError').textContent.includes('after the start'));
+  S('closeLayers()');
+
+  S(`deleteEvent(${JSON.stringify(createdEvent && createdEvent.id)})`);
+  t('event delete removes it from state', !S(`state.events.some((event) => event.title === 'Calendar check')`));
+  S(`setView('today')`);
+
   // Static check: every static $('#id') referenced by JS exists in the DOM
   const js = ['core', 'seed', 'render', 'views', 'actions', 'events']
     .map((name) => fs.readFileSync(path.join(ROOT, 'js', `${name}.js`), 'utf8'))

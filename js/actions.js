@@ -119,6 +119,98 @@ function deleteTask(id) {
   commit('Task deleted');
 }
 
+function openEvent(id, options = {}) {
+  const event = id ? state.events.find((item) => item.id === id) : null;
+  if (id && !event) return;
+  ui.editingEventId = event ? event.id : null;
+  const isNew = !event;
+  $('#eventForm').reset();
+  $('#eventModalTitle').textContent = isNew ? 'New event' : 'Edit event';
+  $('#eventTitle').value = event ? event.title : '';
+  $('#eventDate').value = event ? event.date : (options.date || calendarSelectedKey());
+  $('#eventKind').value = event && EVENT_KIND_LABEL[event.kind] ? event.kind : (options.kind || 'focus');
+  $('#eventStart').value = event ? event.start : (options.start || '09:00');
+  $('#eventEnd').value = event ? event.end : (options.end || '10:00');
+  $('#deleteEventBtn').hidden = isNew;
+  $('#eventError').hidden = true;
+  $('#eventError').textContent = '';
+  openLayer($('#eventModal'));
+}
+
+function saveEvent() {
+  const title = $('#eventTitle').value.trim();
+  if (!title) {
+    $('#eventError').textContent = 'An event needs a title.';
+    $('#eventError').hidden = false;
+    $('#eventTitle').focus();
+    return;
+  }
+  const parsedDate = parseKey($('#eventDate').value);
+  if (!parsedDate) {
+    $('#eventError').textContent = 'Choose a date for this event.';
+    $('#eventError').hidden = false;
+    $('#eventDate').focus();
+    return;
+  }
+  const date = dateKey(parsedDate);
+  const start = validTime($('#eventStart').value) ? $('#eventStart').value : '09:00';
+  const end = validTime($('#eventEnd').value) ? $('#eventEnd').value : '10:00';
+  if (minutesFromTime(end) <= minutesFromTime(start)) {
+    $('#eventError').textContent = 'The end time needs to be after the start time.';
+    $('#eventError').hidden = false;
+    $('#eventEnd').focus();
+    return;
+  }
+  const existing = ui.editingEventId ? state.events.find((item) => item.id === ui.editingEventId) : null;
+  const event = existing || { id: uid('event') };
+  event.title = title;
+  event.date = date;
+  event.start = start;
+  event.end = end;
+  event.kind = EVENT_KIND_LABEL[$('#eventKind').value] ? $('#eventKind').value : 'focus';
+  if (!existing) state.events.push(event);
+  ui.editingEventId = null;
+  ui.calendarMonth = date.slice(0, 7);
+  ui.calendarSelected = date;
+  closeLayers();
+  commit(existing ? 'Event updated' : 'Event added');
+}
+
+function deleteEvent(id) {
+  const event = state.events.find((item) => item.id === id);
+  if (!event) return;
+  if (!askConfirm(`Delete “${event.title}” from the calendar?`)) return;
+  state.events = state.events.filter((item) => item.id !== id);
+  ui.editingEventId = null;
+  closeLayers();
+  commit('Event deleted');
+}
+
+function shiftCalendarMonth(offset) {
+  const cursor = calendarCursorDate();
+  const next = new Date(cursor.getFullYear(), cursor.getMonth() + offset, 1, 12);
+  ui.calendarMonth = monthKey(next);
+  const now = new Date();
+  ui.calendarSelected = next.getFullYear() === now.getFullYear() && next.getMonth() === now.getMonth()
+    ? todayKey()
+    : dateKey(next);
+  renderCalendarView();
+}
+
+function selectCalendarDay(key) {
+  if (!parseKey(key)) return;
+  ui.calendarSelected = key;
+  ui.calendarMonth = key.slice(0, 7);
+  renderCalendarView();
+}
+
+function goCalendarToday() {
+  const now = new Date();
+  ui.calendarMonth = monthKey(now);
+  ui.calendarSelected = todayKey();
+  renderCalendarView();
+}
+
 function completeTask(task, message) {
   if (!task || task.status === 'done') return null;
   task.completedFrom = task.status;
@@ -347,6 +439,8 @@ function openInbox() {
 
 function runPaletteAction(name) {
   if (name === 'new-task') openTask(null);
+  else if (name === 'new-event') openEvent(null);
+  else if (name === 'open-calendar') { setView('calendar'); renderCalendarView(); }
   else if (name === 'open-inbox') openInbox();
   else if (name === 'open-review') openReview();
   else if (name === 'project-palette') openPalette('projects');
@@ -746,7 +840,21 @@ function doAction(element) {
   if (action === 'noop') return;
   if (action === 'new-task') {
     const status = element.dataset.status || 'backlog';
-    openTask(null, { status, projectId: (activeProject() || {}).id, due: status === 'inbox' ? '' : todayKey() });
+    openTask(null, {
+      status,
+      projectId: (activeProject() || {}).id,
+      due: status === 'inbox' ? '' : (element.dataset.due || todayKey())
+    });
+  } else if (action === 'new-event') {
+    openEvent(null, { date: element.dataset.date || ui.calendarSelected || todayKey() });
+  } else if (action === 'calendar-prev') {
+    shiftCalendarMonth(-1);
+  } else if (action === 'calendar-next') {
+    shiftCalendarMonth(1);
+  } else if (action === 'calendar-today') {
+    goCalendarToday();
+  } else if (action === 'calendar-select-day') {
+    selectCalendarDay(element.dataset.date);
   } else if (action === 'open-palette') {
     openPalette(element.dataset.mode || 'search');
   } else if (action === 'open-inbox') {

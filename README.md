@@ -1,11 +1,14 @@
 # Pathstone
 
+[![Tests](https://github.com/luel-4013/Pathstone/actions/workflows/tests.yml/badge.svg)](https://github.com/luel-4013/Pathstone/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A calm, local-first workspace for tasks, projects, and a realistic day.
 
-No framework, no build step, no account, no cloud. You open the page in a
-browser, everything you capture and plan is saved to your browser's local
-storage on your own device, and the whole app keeps working offline once the
-service worker has cached it.
+No framework, no build step, no account, no cloud. Everything you capture and
+plan stays on your own device — in a local SQLite file when the companion
+server is running, and in browser storage when it is not. The whole app keeps
+working offline once the service worker has cached it.
 
 ---
 
@@ -14,6 +17,9 @@ service worker has cached it.
 - **Today view** — a daily capacity ring (8h default), a **plan check** that
   suggests moves and explains what it found, calendar events with buffer
   blocks, and momentum cards driven by real activity.
+- **Calendar** — a full month grid that shows every dated task, event, and
+  project target in one place, plus a selected-day agenda and a next-14-days
+  list. Create, edit, and delete events without leaving the view.
 - **Board** — five-column kanban with drag & drop on desktop; on touch
   devices, tap a card and move it from its editor.
 - **Projects** — requirements, definition of done, docs, owners, target
@@ -45,6 +51,9 @@ service worker has cached it.
   `?theme=paper` in the URL.
 
 ## Quick start
+
+Requires Python 3.9+ (standard library only). Node 20+ is only needed for the
+developer test suite.
 
 Persistent mode (the real database):
 
@@ -100,18 +109,21 @@ the browser's install menu.
 | --- | --- |
 | `Ctrl/⌘ + K` | Open the command palette |
 | `Esc` | Close the current layer/overlay |
-| `Enter` / `Space` | Open the focused task card |
+| `Enter` / `Space` | Open the focused task card, or select the focused calendar day |
 | `Tab` inside modals | Focus is trapped inside the layer |
 
 ## Testing
 
-The app itself has zero dependencies and no build step. There is an optional
-developer test suite (jsdom) that boots the real app and checks behavior:
+The app has zero runtime dependencies and no build step. The optional developer
+suite boots the real app in jsdom and exercises the real SQLite API:
 
 ```bash
 npm install      # installs jsdom + fake-indexeddb as dev dependencies only
-npm test         # 90 jsdom assertions + 20 real-server integration assertions
+npm test         # 100 jsdom assertions + 20 real-server integration assertions
 ```
+
+CI runs the same command on every push and pull request via
+`.github/workflows/tests.yml`.
 
 Notes on the harness live in `tests/test_pathstone.js` — including the two
 classic pitfalls it guards against (script inlining order, and `$`-escaping
@@ -129,21 +141,29 @@ data/                 — runtime SQLite database (pathstone.db + WAL sidecars)
 js/core.js            — state helpers, time math, plan check, themes, save flow
 js/db.js              — the database layer: SQLite(server) / IndexedDB / mirror
 js/seed.js            — seed data, blank-vault factory, import validation
-js/render.js          — chrome + dashboard rendering
-js/views.js           — lists, board, palette, week views
+js/render.js          — chrome, Today, and Calendar rendering
+js/views.js           — project page, board, palette, and list rendering
 js/actions.js         — every user action (capture, move, complete, repeat…)
 js/events.js          — init, bindings, keyboard, heartbeats, storage probe, boot
 tests/                — jsdom suite + real-server API integration suite
+.github/workflows/    — CI: the full suite on every push and pull request
 ```
 
-## Documentation
+## Contributing
 
-- `POSTMORTEM.md` — the product's failure post-mortems in reusable form:
-  the first two deaths, what was fixed and proven, what was consciously
-  shelved, and the blank template for running the same autopsy on anything.
-- `DB_POSTMORTEM.md` — the third and fourth autopsies: how the IndexedDB +
-  backup feature could have died before shipping, and how the SQLite `.db`
-  release went from three storage tiers to a real caught-in-tests bug.
+Issues and focused pull requests are welcome.
+
+- Keep the runtime dependency-free: no framework, build step, telemetry, or
+  cloud sync.
+- Test-only packages belong in `devDependencies`; `npm ci && npm test` must
+  pass from a clean checkout.
+- Preserve the storage contract: SQLite when the local server is running,
+  IndexedDB plus a localStorage mirror otherwise, newest-wins at boot.
+- Match the existing code style; there is no linter or build pipeline to hide
+  mistakes.
+
+Open an issue before a large change. Behavior changes should come with a test
+in `tests/test_pathstone.js` or `tests/test_server_api.js`.
 
 ## Known limits (by design)
 

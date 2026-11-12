@@ -6,6 +6,7 @@ function renderAll() {
   renderChrome(project);
   renderRail(project);
   renderToday(project);
+  renderCalendarView();
   renderBoard(project);
   renderProjectPage(project);
   if (!$('#inboxWrap').hidden) renderInbox();
@@ -202,6 +203,161 @@ function renderCalendar() {
     const tone = event.kind === 'meeting' ? ' grey' : event.kind === 'meeting-dark' ? ' dark' : event.kind === 'buffer' ? ' yellow' : '';
     return `<div class="cal-event${tone}" style="--top:${top};--h:${height}" title="${esc(event.start)}–${esc(event.end)} · ${esc(event.title)}">${esc(event.title)}</div>`;
   }).join('');
+}
+
+function eventTone(kind) {
+  if (kind === 'meeting') return ' meeting';
+  if (kind === 'meeting-dark') return ' deep';
+  if (kind === 'buffer') return ' buffer';
+  if (kind === 'personal') return ' personal';
+  return ' focus';
+}
+
+function calendarIndex() {
+  const tasks = new Map();
+  const events = new Map();
+  const targets = new Map();
+  const push = (map, key, value) => {
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(value);
+  };
+  state.tasks.forEach((task) => {
+    if (task.due && !task.archived) push(tasks, task.due, task);
+  });
+  state.events.forEach((event) => {
+    if (event.date) push(events, event.date, event);
+  });
+  state.projects.forEach((project) => {
+    if (project.target) push(targets, project.target, project);
+  });
+  tasks.forEach((list) => list.sort((a, b) => {
+    const rank = (task) => task.status === 'done' ? 3 : task.top ? 0 : task.priority === 'high' ? 1 : 2;
+    return rank(a) - rank(b) || (a.top || 9) - (b.top || 9) || a.title.localeCompare(b.title);
+  }));
+  events.forEach((list) => list.sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title)));
+  targets.forEach((list) => list.sort((a, b) => (a.short || a.name).localeCompare(b.short || b.name)));
+  return { tasks, events, targets };
+}
+
+function calendarDayInfo(index, key) {
+  const dayTasks = index.tasks.get(key) || [];
+  const dayEvents = index.events.get(key) || [];
+  const dayTargets = index.targets.get(key) || [];
+  return { tasks: dayTasks, events: dayEvents, targets: dayTargets, total: dayTasks.length + dayEvents.length + dayTargets.length };
+}
+
+function calendarChip(type, item) {
+  if (type === 'task') {
+    const project = projectForTask(item);
+    const color = project ? project.color : '#a79a87';
+    return `<button type="button" class="calendar-chip task${item.status === 'done' ? ' done' : ''}" data-open-task="${esc(item.id)}" style="--dot:${esc(color)}" title="${esc(item.title)}"><i></i><span>${esc(item.title)}</span></button>`;
+  }
+  if (type === 'event') {
+    return `<button type="button" class="calendar-chip event${eventTone(item.kind)}" data-open-event="${esc(item.id)}" title="${esc(item.start)}–${esc(item.end)} · ${esc(item.title)}"><span class="time">${esc(item.start)}</span><span>${esc(item.title)}</span></button>`;
+  }
+  return `<button type="button" class="calendar-chip target" data-project="${esc(item.id)}" style="--dot:${esc(item.color || '#e7c76a')}" title="Project target · ${esc(item.short || item.name)}"><i></i><span>${esc(item.short || item.name)}</span></button>`;
+}
+
+function agendaItem(type, item, withDate = false) {
+  if (type === 'task') {
+    const project = projectForTask(item);
+    const meta = [project ? project.short || project.name : 'No project', STATUS_LABEL[item.status] || 'Task'];
+    if (item.estimate) meta.push(fmtDuration(item.estimate));
+    return `<button type="button" class="agenda-item${item.status === 'done' ? ' done' : ''}" data-open-task="${esc(item.id)}">
+      <span class="agenda-time">${withDate ? esc(fmtMonthDay(parseKey(item.due))) : 'Task'}</span>
+      <span class="agenda-main"><b>${esc(item.title)}</b><span>${esc(meta.join(' · '))}</span></span>
+    </button>`;
+  }
+  if (type === 'event') {
+    const meta = [withDate ? fmtMonthDay(parseKey(item.date)) : `${item.start}–${item.end}`, EVENT_KIND_LABEL[item.kind] || 'Event'];
+    return `<button type="button" class="agenda-item" data-open-event="${esc(item.id)}">
+      <span class="agenda-time">${esc(item.start)}</span>
+      <span class="agenda-main"><b>${esc(item.title)}</b><span>${esc(meta.join(' · '))}</span></span>
+    </button>`;
+  }
+  return `<button type="button" class="agenda-item" data-project="${esc(item.id)}">
+    <span class="agenda-time">${withDate ? esc(fmtMonthDay(parseKey(item.target))) : 'Target'}</span>
+    <span class="agenda-main"><b>${esc(item.short || item.name)}</b><span>Project target · ${esc(item.area || 'Personal')}</span></span>
+  </button>`;
+}
+
+function renderCalendarView() {
+  const grid = $('#calendarGrid');
+  if (!grid) return;
+  const cursor = calendarCursorDate();
+  ui.calendarMonth = monthKey(cursor);
+  const index = calendarIndex();
+  const prefix = `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}`;
+  const monthTasks = state.tasks.filter((task) => task.due && task.due.startsWith(prefix) && !task.archived);
+  const monthEvents = state.events.filter((event) => event.date && event.date.startsWith(prefix));
+  const monthTargets = state.projects.filter((project) => project.target && project.target.startsWith(prefix));
+  const openTasks = monthTasks.filter((task) => task.status !== 'done').length;
+  const monthTotal = monthTasks.length + monthEvents.length + monthTargets.length;
+  $('#calendarMonthCount').textContent = monthTotal;
+  $('#calendarTaskCount').textContent = openTasks;
+  $('#calendarEventCount').textContent = monthEvents.length;
+  $('#calendarCount').textContent = openTasks;
+  $('#calendarMonthLabel').textContent = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const lastDay = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 12);
+  $('#calendarMonthSub').textContent = `${fmtMonthDay(cursor)} – ${fmtMonthDay(lastDay)} · Monday start`;
+  $('#calendarHint').textContent = monthTotal
+    ? 'Click a day for the full agenda. Tasks and events are both shown.'
+    : 'A clear month. Add an event or give a task a date.';
+
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1, 12);
+  const start = new Date(first);
+  start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+  const selected = calendarSelectedKey();
+  const cells = [];
+  for (let offset = 0; offset < 42; offset += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + offset);
+    const key = dateKey(date);
+    const info = calendarDayInfo(index, key);
+    const otherMonth = date.getMonth() !== cursor.getMonth() || date.getFullYear() !== cursor.getFullYear();
+    const chips = [
+      ...info.events.map((event) => calendarChip('event', event)),
+      ...info.tasks.map((task) => calendarChip('task', task)),
+      ...info.targets.map((project) => calendarChip('target', project))
+    ];
+    const visible = chips.slice(0, 3);
+    cells.push(`<div class="calendar-day${otherMonth ? ' other-month' : ''}${key === todayKey() ? ' today' : ''}${key === selected ? ' selected' : ''}" role="button" tabindex="0" data-action="calendar-select-day" data-date="${key}" aria-label="${esc(fmtLong(date))} · ${info.total} item${info.total === 1 ? '' : 's'}">
+      <div class="calendar-day-head"><span class="calendar-day-num">${date.getDate()}</span>${info.total ? `<span class="calendar-day-total">${info.total}</span>` : ''}</div>
+      <div class="calendar-day-chips">${visible.join('')}</div>
+      ${chips.length > visible.length ? `<span class="calendar-more">+${chips.length - visible.length} more</span>` : ''}
+    </div>`);
+  }
+  grid.innerHTML = cells.join('');
+
+  const selectedDate = parseKey(selected);
+  const selectedInfo = calendarDayInfo(index, selected);
+  $('#calendarDayTitle').textContent = selectedDate
+    ? `${selected === todayKey() ? 'Today · ' : ''}${selectedDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`
+    : 'Selected day';
+  $('#calendarDayCount').textContent = `${selectedInfo.total} item${selectedInfo.total === 1 ? '' : 's'}`;
+  const agenda = [
+    ...selectedInfo.events.map((event) => agendaItem('event', event)),
+    ...selectedInfo.tasks.map((task) => agendaItem('task', task)),
+    ...selectedInfo.targets.map((project) => agendaItem('target', project))
+  ];
+  $('#calendarDayList').innerHTML = agenda.length
+    ? agenda.join('')
+    : `<div class="agenda-empty"><b>Nothing dated.</b>Keep it clear, or put something on the calendar.</div>`;
+  $('#calendarDayActions').innerHTML = `
+    <button type="button" class="mini-action accent" data-action="new-event" data-date="${esc(selected)}">${icon('i-plus')}Add event</button>
+    <button type="button" class="mini-action" data-action="new-task" data-due="${esc(selected)}">${icon('i-plus')}Add task</button>`;
+
+  const upcoming = [];
+  for (let offset = 0; offset < 14; offset += 1) {
+    const key = addDays(todayKey(), offset);
+    const info = calendarDayInfo(index, key);
+    info.events.forEach((event) => upcoming.push({ type: 'event', item: event, key }));
+    info.targets.forEach((project) => upcoming.push({ type: 'target', item: project, key }));
+    info.tasks.filter((task) => task.status !== 'done').forEach((task) => upcoming.push({ type: 'task', item: task, key }));
+  }
+  $('#calendarUpcoming').innerHTML = upcoming.length
+    ? upcoming.slice(0, 12).map((entry) => agendaItem(entry.type, entry.item, true)).join('')
+    : `<div class="agenda-empty"><b>Nothing coming up.</b>The next two weeks are clear.</div>`;
 }
 
 function renderShape(plan) {

@@ -10,7 +10,7 @@
  * fall back to the index shell when a navigation cannot reach the network.
  */
 
-const CACHE = 'pathstone-cache-v3';
+const CACHE = 'pathstone-cache-v4';
 const SHELL = './index.html';
 const ASSETS = [
   './',

@@ -3,7 +3,7 @@
 const VAULT_KEY = 'pathstone-vault-v1';
 const LEGACY_THEME_KEY = 'pathstone-theme';
 const THEMES = ['dusk', 'warm', 'paper', 'ink'];
-const VIEWS = ['today', 'board', 'project'];
+const VIEWS = ['today', 'calendar', 'board', 'project'];
 const CAPACITY = 480;
 const FOCUS_GOAL = 900;
 const COLUMNS = [
@@ -18,6 +18,14 @@ const REPEAT_LABEL = {
   daily: 'Repeats daily',
   weekdays: 'Repeats weekdays',
   weekly: 'Repeats weekly'
+};
+const EVENT_KINDS = ['focus', 'meeting', 'meeting-dark', 'personal', 'buffer'];
+const EVENT_KIND_LABEL = {
+  focus: 'Focus block',
+  meeting: 'Meeting',
+  'meeting-dark': 'Deep meeting',
+  personal: 'Personal',
+  buffer: 'Buffer'
 };
 const STATUS_LABEL = {
   inbox: 'Inbox',
@@ -56,7 +64,10 @@ const ui = {
   draftSubtasks: [],
   paletteMode: 'search',
   paletteIndex: 0,
-  suppressBoardClick: false
+  suppressBoardClick: false,
+  editingEventId: null,
+  calendarMonth: null,
+  calendarSelected: null
 };
 
 function uid(prefix) {
@@ -155,6 +166,34 @@ function fmtDuration(minutes) {
 function minutesFromTime(time) {
   const parts = String(time || '00:00').split(':').map(Number);
   return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function validTime(time) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(time || ''));
+}
+
+function timeFromMinutes(total) {
+  const safe = Math.max(0, Math.min(1439, Math.round(Number(total) || 0)));
+  return `${pad(Math.floor(safe / 60))}:${pad(safe % 60)}`;
+}
+
+function monthKey(date = new Date()) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+}
+
+function calendarCursorDate() {
+  const match = /^(\d{4})-(\d{2})$/.exec(String(ui.calendarMonth || ''));
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    if (month >= 0 && month <= 11) return new Date(year, month, 1, 12, 0, 0, 0);
+  }
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0, 0);
+}
+
+function calendarSelectedKey() {
+  return ui.calendarSelected && parseKey(ui.calendarSelected) ? ui.calendarSelected : todayKey();
 }
 
 function relativeDue(task) {

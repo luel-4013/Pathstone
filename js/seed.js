@@ -328,7 +328,23 @@ function normalizeState(candidate) {
   next.meta.lastSaved = next.meta.lastSaved && !Number.isNaN(new Date(next.meta.lastSaved).getTime()) ? next.meta.lastSaved : new Date().toISOString();
   next.meta.lastExport = typeof next.meta.lastExport === 'string' && !Number.isNaN(new Date(next.meta.lastExport).getTime()) ? next.meta.lastExport : null;
   next.meta.lastSnapshotDate = next.meta.lastSnapshotDate && parseKey(next.meta.lastSnapshotDate) ? String(next.meta.lastSnapshotDate) : null;
-  next.events = Array.isArray(next.events) ? next.events.filter((event) => event && event.date) : [];
+  next.events = Array.isArray(next.events)
+    ? next.events.map((event) => {
+      if (!event || !parseKey(event.date)) return null;
+      const start = validTime(event.start) ? event.start : '09:00';
+      const startMinutes = minutesFromTime(start);
+      let end = validTime(event.end) ? event.end : timeFromMinutes(startMinutes + 30);
+      if (minutesFromTime(end) <= startMinutes) end = timeFromMinutes(startMinutes + 30);
+      return {
+        id: event.id ? String(event.id) : uid('event'),
+        date: dateKey(parseKey(event.date)),
+        title: String(event.title || 'Untitled event').slice(0, 180),
+        start,
+        end,
+        kind: EVENT_KIND_LABEL[event.kind] ? event.kind : 'focus'
+      };
+    }).filter(Boolean)
+    : [];
   next.focusLog = next.focusLog && typeof next.focusLog === 'object' ? next.focusLog : {};
   next.focusRun = next.focusRun && next.focusRun.startedAt && !Number.isNaN(new Date(next.focusRun.startedAt).getTime())
     ? { startedAt: String(next.focusRun.startedAt) }

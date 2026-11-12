@@ -54,6 +54,7 @@
   <div class="local-pill"><i></i>Local only · no account</div>
   <nav class="view-tabs" aria-label="Views">
     <button class="view-tab active" data-view="today" aria-selected="true">Today</button>
+    <button class="view-tab" data-view="calendar" aria-selected="false">Calendar</button>
     <button class="view-tab" data-view="board" aria-selected="false">Board</button>
     <button class="view-tab" data-view="project" aria-selected="false">Project</button>
   </nav>
@@ -81,6 +82,7 @@
     <div class="rail-group">
       <div class="rail-label">Workspace</div>
       <button class="rail-link active" data-view="today" id="railToday"><svg class="ico"><use href="#i-sun"/></svg>Today<span id="todayCount">0</span></button>
+      <button class="rail-link" data-view="calendar" id="railCalendar"><svg class="ico"><use href="#i-calendar"/></svg>Calendar<span id="calendarCount">0</span></button>
       <button class="rail-link" id="inboxBtn"><svg class="ico"><use href="#i-inbox"/></svg>Inbox<span id="inboxCount">0</span></button>
       <button class="rail-link" data-view="board" id="railBoard"><svg class="ico"><use href="#i-board"/></svg>Board</button>
       <button class="rail-link" id="reviewBtn"><svg class="ico"><use href="#i-review"/></svg>Weekly review</button>
@@ -257,6 +259,55 @@
       </div>
     </section>
 
+    <section class="view calendar-page" id="view-calendar" aria-label="Calendar">
+      <div class="page-head">
+        <div>
+          <span class="eyebrow">All projects · one timeline</span>
+          <h2>Calendar</h2>
+          <p>Every dated task, event, and project target. Nothing hidden in a second app.</p>
+        </div>
+        <div class="page-head-meta">
+          <div><b id="calendarMonthCount">0</b><span>items this month</span></div>
+          <div><b id="calendarTaskCount">0</b><span>open tasks</span></div>
+          <div><b id="calendarEventCount">0</b><span>events</span></div>
+        </div>
+      </div>
+      <div class="calendar-toolbar">
+        <div class="calendar-nav">
+          <button class="icon-btn" type="button" data-action="calendar-prev" aria-label="Previous month" title="Previous month"><svg class="ico" style="transform:rotate(180deg)"><use href="#i-chevron"/></svg></button>
+          <button class="icon-btn" type="button" data-action="calendar-next" aria-label="Next month" title="Next month"><svg class="ico"><use href="#i-chevron"/></svg></button>
+        </div>
+        <div class="calendar-month-wrap">
+          <h3 id="calendarMonthLabel">Month</h3>
+          <span id="calendarMonthSub">Monday start · local time</span>
+        </div>
+        <div class="toolbar-right">
+          <button class="chip" type="button" data-action="calendar-today">Today</button>
+          <button class="primary-btn" type="button" data-action="new-event"><svg class="ico"><use href="#i-plus"/></svg>New event</button>
+        </div>
+      </div>
+      <div class="calendar-layout">
+        <section class="panel calendar-panel">
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid" aria-label="Month calendar"></div>
+          <div class="calendar-foot"><span id="calendarHint">Click a day to see everything scheduled.</span><span class="right"><svg class="ico"><use href="#i-lock"/></svg>Local calendar</span></div>
+        </section>
+        <aside class="calendar-side">
+          <section class="panel calendar-day-panel">
+            <div class="card-head"><h2 id="calendarDayTitle">Selected day</h2><span id="calendarDayCount">0 items</span></div>
+            <div class="agenda-list" id="calendarDayList"></div>
+            <div class="calendar-actions" id="calendarDayActions"></div>
+          </section>
+          <section class="panel calendar-upcoming-panel">
+            <div class="card-head"><h2>Upcoming</h2><span>Next 14 days</span></div>
+            <div class="agenda-list" id="calendarUpcoming"></div>
+          </section>
+        </aside>
+      </div>
+    </section>
+
     <section class="view board-page" id="view-board" aria-label="Board">
       <div class="page-head">
         <div>
@@ -426,6 +477,39 @@
         <span class="spacer"></span>
         <button type="button" class="btn" data-close>Cancel</button>
         <button type="submit" class="btn primary">Save task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-wrap" id="eventModal" hidden>
+  <div class="modal small" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
+    <div class="modal-head">
+      <div><span class="eyebrow">Calendar</span><h2 id="eventModalTitle">New event</h2></div>
+      <button class="modal-close" data-close aria-label="Close event"><svg class="ico"><use href="#i-close"/></svg></button>
+    </div>
+    <form id="eventForm">
+      <div class="modal-body">
+        <p class="form-error" id="eventError" hidden></p>
+        <label class="field wide"><span>Title</span><input id="eventTitle" type="text" maxlength="180" required placeholder="What is happening?"></label>
+        <div class="form-grid">
+          <label class="field"><span>Date</span><input id="eventDate" type="date" required></label>
+          <label class="field"><span>Kind</span><select id="eventKind">
+            <option value="focus">Focus block</option>
+            <option value="meeting">Meeting</option>
+            <option value="meeting-dark">Deep meeting</option>
+            <option value="personal">Personal</option>
+            <option value="buffer">Buffer</option>
+          </select></label>
+          <label class="field"><span>Start</span><input id="eventStart" type="time" required></label>
+          <label class="field"><span>End</span><input id="eventEnd" type="time" required></label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn danger" id="deleteEventBtn"><svg class="ico"><use href="#i-trash"/></svg>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Save event</button>
       </div>
     </form>
   </div>

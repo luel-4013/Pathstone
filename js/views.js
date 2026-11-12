@@ -140,6 +140,8 @@ function renderPalette() {
   } else {
     if (!query) {
       items.push(paletteAction('new-task', 'New task', 'Capture, estimate, and place the next action', 'i-plus'));
+      items.push(paletteAction('new-event', 'New event', 'Put a meeting, focus block, or buffer on the calendar', 'i-calendar'));
+      items.push(paletteAction('open-calendar', 'Open calendar', 'See every dated task and event', 'i-calendar'));
       items.push(paletteAction('open-inbox', 'Open inbox', `${inboxTasks().length} captures waiting`, 'i-inbox'));
       items.push(paletteAction('open-review', 'Weekly review', 'Close the week with three honest lines', 'i-review'));
       items.push(paletteAction('project-palette', 'Switch project', 'Jump to another living workspace', 'i-board'));
@@ -163,6 +165,8 @@ function renderPalette() {
         });
       const actions = [
         paletteAction('new-task', 'New task', 'Capture a new action', 'i-plus'),
+        paletteAction('new-event', 'New event', 'Add something to the calendar', 'i-calendar'),
+        paletteAction('open-calendar', 'Open calendar', 'See dated tasks and events', 'i-calendar'),
         paletteAction('open-inbox', 'Open inbox', `${inboxTasks().length} captures waiting`, 'i-inbox'),
         paletteAction('open-review', 'Weekly review', 'Close the week', 'i-review'),
         paletteAction('add-project', 'New project', 'Start another living workspace', 'i-plus'),

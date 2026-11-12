@@ -116,16 +116,22 @@ function handleClick(event) {
     return;
   }
 
-  const actionElement = target.closest('[data-action]');
-  if (actionElement) {
-    doAction(actionElement);
-    return;
-  }
-
   const openTaskElement = target.closest('[data-open-task]');
   if (openTaskElement) {
     if (ui.suppressBoardClick) return;
     openTask(openTaskElement.dataset.openTask);
+    return;
+  }
+
+  const openEventElement = target.closest('[data-open-event]');
+  if (openEventElement) {
+    openEvent(openEventElement.dataset.openEvent);
+    return;
+  }
+
+  const actionElement = target.closest('[data-action]');
+  if (actionElement) {
+    doAction(actionElement);
     return;
   }
 
@@ -171,6 +177,12 @@ function handleKeydown(event) {
   if (openTaskElement) {
     event.preventDefault();
     openTask(openTaskElement.dataset.openTask);
+    return;
+  }
+  const actionElement = target.closest('[data-action]');
+  if (actionElement) {
+    event.preventDefault();
+    doAction(actionElement);
   }
 }
 
@@ -214,6 +226,15 @@ function bindForms() {
   $('#taskForm').addEventListener('submit', (event) => {
     event.preventDefault();
     saveTask();
+  });
+
+  $('#eventForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    saveEvent();
+  });
+
+  $('#deleteEventBtn').addEventListener('click', () => {
+    if (ui.editingEventId) deleteEvent(ui.editingEventId);
   });
 
   $('#taskStatus').addEventListener('change', () => {
