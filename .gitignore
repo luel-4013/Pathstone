@@ -20,3 +20,8 @@ __pycache__/
 /_app.js
 /_body.html
 /mock.html
+
+# Electron packaging outputs
+out/
+dist/
+.venv/

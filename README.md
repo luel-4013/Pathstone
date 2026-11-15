@@ -5,10 +5,11 @@
 
 A calm, local-first workspace for tasks, projects, and a realistic day.
 
-No framework, no build step, no account, no cloud. Everything you capture and
-plan stays on your own device — in a local SQLite file when the companion
-server is running, and in browser storage when it is not. The whole app keeps
-working offline once the service worker has cached it.
+No framework, no browser build step, no account, no cloud. Everything you
+capture and plan stays on your own device — in a local SQLite file inside the
+desktop app, in `data/pathstone.db` when the companion server is running, and
+in browser storage when neither is available. The whole app keeps working
+offline once the service worker has cached it.
 
 ---
 
@@ -52,8 +53,8 @@ working offline once the service worker has cached it.
 
 ## Quick start
 
-Requires Python 3.9+ (standard library only). Node 20+ is only needed for the
-developer test suite.
+Requires Python 3.9+ (standard library only). Node 22.13+ is needed for the
+developer test suite and desktop packaging.
 
 Persistent mode (the real database):
 
@@ -71,11 +72,67 @@ storage in some browsers.
 If storage is not available in your browser context, the save pill says
 **Storage unavailable** in plain words — the app will not pretend to save.
 
+## Desktop app (Electron)
+
+The desktop shell runs the same UI from `app://pathstone` and replaces the
+Python server with an embedded `node:sqlite` database in Electron's main
+process. The packaged app is self-contained: no Python, no sidecar process,
+and no listening HTTP port.
+
+```bash
+npm ci
+npm run desktop:start      # development window
+npm run desktop:package    # unpacked app in out/
+npm run desktop:make       # AppImage (and zip/deb when the host tools exist)
+```
+
+The single-file Linux artifact is written to:
+
+```text
+out/make/AppImage/x64/Pathstone-0.3.0-x64.AppImage
+```
+
+Run it with:
+
+```bash
+chmod +x out/make/AppImage/x64/Pathstone-0.3.0-x64.AppImage
+./out/make/AppImage/x64/Pathstone-0.3.0-x64.AppImage
+```
+
+Build requirements:
+
+- Node.js **22.13 or newer** (Electron Forge 8).
+- `mksquashfs` for the AppImage (`squashfs-tools` on Manjaro/Arch and
+  Debian/Ubuntu).
+- FUSE 2 to mount the AppImage normally. On systems without FUSE, run it with
+  `--appimage-extract-and-run`.
+- `dpkg-deb` + `fakeroot` are optional; they add a `.deb` maker. `zip` is
+  optional; it adds a zip maker. AppImage builds do not require either.
+
+The desktop database lives outside the app bundle:
+
+| Platform | Database |
+| --- | --- |
+| Linux | `~/.config/pathstone/pathstone.db` |
+| macOS | `~/Library/Application Support/pathstone/pathstone.db` |
+| Windows | `%APPDATA%\pathstone\pathstone.db` |
+
+On first run, if that file is empty, the app imports an existing
+`data/pathstone.db` from the checkout (useful when running `npm run
+desktop:start`). To import a database from elsewhere, point
+`PATHSTONE_LEGACY_DB` at it for the first launch. `PATHSTONE_DB` overrides the
+desktop database path for tests or portable setups.
+
+The app is **unsigned**. AppImage and zip outputs are not code-signed; expect
+an OS warning on first launch. App-level encryption is not included — use
+full-disk encryption if the vault needs encryption at rest.
+
 ## Data & privacy
 
 Three storage tiers, newest-wins at boot, fully on-device:
 
-1. **SQLite file** — `data/pathstone.db` (created by the local server):
+1. **SQLite file** — `data/pathstone.db` (created by the local server) or the
+   desktop app's `pathstone.db` under Electron's userData directory:
    transactional, WAL-journaled, lives on your disk, backed by WAL/SHM
    sidecars. This is the database. The `data/` directory is never committed.
 2. **IndexedDB** (key `pathstone-db`) — on-device fallback when the server
@@ -92,7 +149,9 @@ Three storage tiers, newest-wins at boot, fully on-device:
 - **Export / Import** JSON from the vault card: the portable, human-readable
   file (`Downloads/pathstone-vault-<date>.json`), and the only thing that
   crosses browsers or devices. Export nudges when stale (~2 weeks).
-- Clearing site data still deletes every tier — export first.
+- Clearing browser site data still deletes the browser tiers — export first.
+  The desktop database lives in the app's userData directory, not in the
+  browser profile.
 - If storage is blocked, the save pill reads **Database unreachable** or
   **Storage unavailable** in plain words. It never pretends to save.
 
@@ -102,6 +161,11 @@ A service worker (`sw.js`) serves same-origin requests offline and falls back
 to the index shell on failed navigations. After one load with network, the
 app installs itself for offline use and can be installed as an app through
 the browser's install menu.
+
+The Electron build is offline by construction: the renderer's HTTP/HTTPS/WS
+requests are blocked, external navigation and popups are denied, and the
+AppImage is a single executable file. The service worker is not registered
+under `app://`; it is not needed there.
 
 ## Keyboard
 
@@ -114,16 +178,18 @@ the browser's install menu.
 
 ## Testing
 
-The app has zero runtime dependencies and no build step. The optional developer
-suite boots the real app in jsdom and exercises the real SQLite API:
+The browser app has zero runtime dependencies and no build step. The optional
+developer suite boots the real app in jsdom, exercises the real SQLite API,
+and checks the embedded desktop database:
 
 ```bash
-npm install      # installs jsdom + fake-indexeddb as dev dependencies only
-npm test         # 100 jsdom assertions + 20 real-server integration assertions
+npm ci           # jsdom, fake-indexeddb, Electron, and Forge as dev deps
+npm test         # 100 jsdom + 20 server API + 19 desktop SQLite assertions
 ```
 
 CI runs the same command on every push and pull request via
-`.github/workflows/tests.yml`.
+`.github/workflows/tests.yml`. The desktop database test uses Node's built-in
+`node:sqlite`; it skips cleanly on Node versions that do not ship it.
 
 Notes on the harness live in `tests/test_pathstone.js` — including the two
 classic pitfalls it guards against (script inlining order, and `$`-escaping
@@ -145,7 +211,11 @@ js/render.js          — chrome, Today, and Calendar rendering
 js/views.js           — project page, board, palette, and list rendering
 js/actions.js         — every user action (capture, move, complete, repeat…)
 js/events.js          — init, bindings, keyboard, heartbeats, storage probe, boot
-tests/                — jsdom suite + real-server API integration suite
+electron/main.js      — desktop shell: app:// protocol, security, window
+electron/sqlite-service.js — embedded node:sqlite vault API for the desktop app
+forge.config.js       — Electron Forge packaging (AppImage, zip, optional deb)
+out/                  — ignored build output (unpacked app and installers)
+tests/                — jsdom suite + server API + desktop SQLite suites
 .github/workflows/    — CI: the full suite on every push and pull request
 ```
 
@@ -153,12 +223,14 @@ tests/                — jsdom suite + real-server API integration suite
 
 Issues and focused pull requests are welcome.
 
-- Keep the runtime dependency-free: no framework, build step, telemetry, or
-  cloud sync.
+- Keep the browser runtime dependency-free: no framework, no build step, no
+  telemetry, no cloud sync. The desktop shell uses Electron plus Node
+  built-ins only.
 - Test-only packages belong in `devDependencies`; `npm ci && npm test` must
   pass from a clean checkout.
-- Preserve the storage contract: SQLite when the local server is running,
-  IndexedDB plus a localStorage mirror otherwise, newest-wins at boot.
+- Preserve the storage contract: embedded SQLite in the desktop app, SQLite
+  when the local server is running, IndexedDB plus a localStorage mirror
+  otherwise, newest-wins at boot.
 - Match the existing code style; there is no linter or build pipeline to hide
   mistakes.
 
@@ -170,7 +242,10 @@ in `tests/test_pathstone.js` or `tests/test_server_api.js`.
 - Single-user by design; syncing across devices is consciously postponed.
 - Web notifications fire only while the tab is open — a browser platform
   limit, stated on the toggle itself.
-- There is no build pipeline, no telemetry, no updates beyond the files here.
+- The browser app has no build pipeline, no telemetry, and no updates beyond
+  the files here. Desktop packaging uses Electron Forge only.
+- Desktop builds are unsigned. App-level encryption is not included; use
+  full-disk encryption for a confidential vault.
 
 ## License
 

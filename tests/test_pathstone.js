@@ -219,15 +219,33 @@ function buildHtml() {
   t('sweep clears overdue tasks to backlog (undated)', sweep.before > 0 && sweep.count === 0 && sweep.undated === sweep.before);
 
   // Swept tasks must not become invisible: plan check counts undated backlog
-  // and offers a "Decide" action that opens the task palette.
-  const backlog = S(`(function(){ const plan = computePlan(); renderPlan(); const decide = document.querySelector('.plan-suggestion [data-action="open-palette"][data-mode="tasks"]'); return { undated: plan.backlogUndated, decide: Boolean(decide), label: decide ? decide.textContent : '' }; })()`);
-  t('swept tasks counted as undated backlog', backlog.undated >= sweep.before);
-  t('plan check offers Decide for undated backlog', backlog.decide && backlog.label === 'Decide');
-
-  // Workday-aware plan check (closed after 17:00 local)
-  const closedNow = new Date().getHours() >= 17;
-  const planMoves = S('computePlan().moves');
-  t('plan check knows when the workday is closed', S('computePlan().closed') === closedNow && (!closedNow || planMoves === 0));
+  // and offers a "Decide" action that opens the task palette. Pin the clock
+  // to a mid-morning and a late-evening hour so this suite is reproducible
+  // no matter when it runs.
+  const planStates = S(`(function(){
+    const RealDate = Date;
+    function at(hour) {
+      const fixed = new RealDate();
+      fixed.setHours(hour, 0, 0, 0);
+      class FixedDate extends RealDate {
+        constructor(...args) { super(...(args.length ? args : [fixed.getTime()])); }
+        static now() { return fixed.getTime(); }
+      }
+      window.Date = FixedDate;
+      try {
+        const plan = computePlan();
+        renderPlan();
+        const decide = document.querySelector('.plan-suggestion [data-action="open-palette"][data-mode="tasks"]');
+        return { closed: plan.closed, moves: plan.moves, undated: plan.backlogUndated, decide: Boolean(decide), label: decide ? decide.textContent : '' };
+      } finally {
+        window.Date = RealDate;
+      }
+    }
+    return { open: at(10), closed: at(18) };
+  })()`);
+  t('swept tasks counted as undated backlog', planStates.open.undated >= sweep.before);
+  t('plan check offers Decide for undated backlog', planStates.open.decide && planStates.open.label === 'Decide');
+  t('plan check knows when the workday is closed', planStates.open.closed === false && planStates.closed.closed === true && planStates.closed.moves === 0);
 
   // Reminders: mock Notification service (demo state has counts to report)
   const remindResult = S(`(function(){ const before = Boolean(state.settings.reminders); toggleReminders(); const after = state.settings.reminders; runDailyReminder(); return { before, after, last: state.settings.lastReminderDate, notified: window.__notes.length }; })()`);
