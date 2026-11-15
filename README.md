@@ -83,10 +83,38 @@ and no listening HTTP port.
 npm ci
 npm run desktop:start      # development window
 npm run desktop:package    # unpacked app in out/
-npm run desktop:make       # AppImage (and zip/deb when the host tools exist)
+npm run desktop:dist       # packages for the current OS
+npm run desktop:dist:list  # show makers and missing host tools
 ```
 
-The single-file Linux artifact is written to:
+`desktop:dist` wraps Electron Forge with target and toolchain checks. It can
+build the host platform, a named platform, or every platform this host can
+serve:
+
+```bash
+npm run desktop:dist -- --clean
+npm run desktop:dist -- --platform linux --clean
+npm run desktop:dist -- --platform all
+npm run desktop:dist -- --platform win32 --arch x64
+npm run desktop:dist -- --targets @reforged/maker-appimage
+```
+
+Packaging matrix:
+
+| Host | Target | Artifact |
+| --- | --- | --- |
+| Linux | Linux | `AppImage`, `.deb`, `.rpm`, `.zip` |
+| Windows | Windows | Squirrel `Setup.exe`, `.nupkg`, `.zip` |
+| macOS | macOS | `.dmg`, `.zip` |
+| Linux + `mono` + `wine` | Windows | Squirrel installer + `.zip` |
+| Windows/macOS | other OS | `.zip` where the host tools permit |
+
+Makers that cannot run on the current host are skipped and explained. For
+example, DMG creation requires macOS, `.deb` requires `dpkg-deb` and
+`fakeroot`, and `.rpm` requires `rpmbuild`. Build native Windows and macOS
+packages on those operating systems for reliable, signed-ready output.
+
+On Linux, the single-file AppImage is written to:
 
 ```text
 out/make/AppImage/x64/Pathstone-0.3.0-x64.AppImage
@@ -106,8 +134,13 @@ Build requirements:
   Debian/Ubuntu).
 - FUSE 2 to mount the AppImage normally. On systems without FUSE, run it with
   `--appimage-extract-and-run`.
-- `dpkg-deb` + `fakeroot` are optional; they add a `.deb` maker. `zip` is
-  optional; it adds a zip maker. AppImage builds do not require either.
+- `dpkg-deb` + `fakeroot` add the `.deb` maker; `rpmbuild` adds the `.rpm`
+  maker; `zip` adds portable zip output.
+- Squirrel Windows installers build natively on Windows, or on Linux with
+  `mono` and `wine`. DMG output requires macOS.
+
+All generated files live under `out/` and are ignored by git. The packaging
+script also warns if `out/` is not ignored in the current checkout.
 
 The desktop database lives outside the app bundle:
 
@@ -123,9 +156,10 @@ desktop:start`). To import a database from elsewhere, point
 `PATHSTONE_LEGACY_DB` at it for the first launch. `PATHSTONE_DB` overrides the
 desktop database path for tests or portable setups.
 
-The app is **unsigned**. AppImage and zip outputs are not code-signed; expect
-an OS warning on first launch. App-level encryption is not included — use
-full-disk encryption if the vault needs encryption at rest.
+The app is **unsigned**. AppImage, `.deb`, `.rpm`, Squirrel, `.dmg`, and zip
+outputs are not code-signed or notarized; expect an OS warning on first
+launch. App-level encryption is not included — use full-disk encryption if the
+vault needs encryption at rest.
 
 ## Data & privacy
 
@@ -213,7 +247,10 @@ js/actions.js         — every user action (capture, move, complete, repeat…)
 js/events.js          — init, bindings, keyboard, heartbeats, storage probe, boot
 electron/main.js      — desktop shell: app:// protocol, security, window
 electron/sqlite-service.js — embedded node:sqlite vault API for the desktop app
-forge.config.js       — Electron Forge packaging (AppImage, zip, optional deb)
+forge.config.js       — Electron Forge packaging (AppImage, deb, rpm, dmg, Squirrel, zip)
+scripts/packaging.js  — maker matrix + host toolchain checks
+scripts/package-desktop.js — cross-platform packaging wrapper
+icons/                — app icons (PNG, ICO for Windows, ICNS for macOS)
 out/                  — ignored build output (unpacked app and installers)
 tests/                — jsdom suite + server API + desktop SQLite suites
 .github/workflows/    — CI: the full suite on every push and pull request

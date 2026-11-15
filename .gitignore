@@ -21,7 +21,20 @@ __pycache__/
 /_body.html
 /mock.html
 
-# Electron packaging outputs
-out/
-dist/
+# Electron packaging and release outputs
+/out/
+/dist/
+/release/
+/artifacts/
+*.AppImage
+*.deb
+*.rpm
+*.dmg
+*.msi
+*.nupkg
+*.pkg
+*.snap
+*.flatpak
+
+# Python virtualenv
 .venv/

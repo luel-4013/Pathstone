@@ -37,11 +37,16 @@
     "test": "node tests/test_pathstone.js && node tests/test_server_api.js && node tests/test_sqlite_service.js",
     "desktop:start": "electron-forge start",
     "desktop:package": "electron-forge package",
-    "desktop:make": "electron-forge make"
+    "desktop:make": "electron-forge make",
+    "desktop:dist": "node scripts/package-desktop.js",
+    "desktop:dist:list": "node scripts/package-desktop.js --list"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
     "@electron-forge/maker-deb": "^8.0.1",
+    "@electron-forge/maker-dmg": "^8.0.1",
+    "@electron-forge/maker-rpm": "^8.0.1",
+    "@electron-forge/maker-squirrel": "^8.0.1",
     "@electron-forge/maker-zip": "^8.0.1",
     "@reforged/maker-appimage": "^6.0.0",
     "electron": "^45.3.2",
