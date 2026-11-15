@@ -87,6 +87,15 @@ npm run desktop:dist       # packages for the current OS
 npm run desktop:dist:list  # show makers and missing host tools
 ```
 
+For a guided, prompt-based setup and packaging run:
+
+```bash
+./pathstone-electron-setup.sh
+```
+
+It asks before overwriting files, installing dependencies, running tests,
+building installers, committing, or launching the app.
+
 `desktop:dist` wraps Electron Forge with target and toolchain checks. It can
 build the host platform, a named platform, or every platform this host can
 serve:
