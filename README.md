@@ -94,7 +94,8 @@ For a guided, prompt-based setup and packaging run:
 ```
 
 It asks before overwriting files, installing dependencies, running tests,
-building installers, committing, or launching the app.
+building installers, committing, or launching the app. It stays on the current
+branch unless you explicitly choose a separate `desktop/electron` branch.
 
 `desktop:dist` wraps Electron Forge with target and toolchain checks. It can
 build the host platform, a named platform, or every platform this host can
@@ -147,6 +148,9 @@ Build requirements:
   maker; `zip` adds portable zip output.
 - Squirrel Windows installers build natively on Windows, or on Linux with
   `mono` and `wine`. DMG output requires macOS.
+- ImageMagick is optional; the setup script uses it to generate the Windows
+  `.ico` and macOS `.icns` from `icons/icon-512.png` when those icons are
+  missing.
 
 All generated files live under `out/` and are ignored by git. The packaging
 script also warns if `out/` is not ignored in the current checkout.
@@ -259,6 +263,7 @@ electron/sqlite-service.js — embedded node:sqlite vault API for the desktop ap
 forge.config.js       — Electron Forge packaging (AppImage, deb, rpm, dmg, Squirrel, zip)
 scripts/packaging.js  — maker matrix + host toolchain checks
 scripts/package-desktop.js — cross-platform packaging wrapper
+pathstone-electron-setup.sh — prompt-based setup and packaging helper
 icons/                — app icons (PNG, ICO for Windows, ICNS for macOS)
 out/                  — ignored build output (unpacked app and installers)
 tests/                — jsdom suite + server API + desktop SQLite suites

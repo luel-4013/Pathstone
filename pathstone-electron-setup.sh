@@ -32,10 +32,12 @@ Options:
       --skip-install  Do not install or update npm dependencies
       --skip-test     Do not run the test suite
       --commit     Commit the setup and packaging changes without asking
-      --no-branch  Stay on the current branch
+      --no-branch  Do not offer to create a separate branch (default)
   -h, --help       Show this help
 
 If PATHSTONE_DIR is omitted, the current directory is used.
+
+The script stays on the current branch unless you opt into a separate branch.
 
 Packaging uses Electron Forge through scripts/package-desktop.js and can build:
   Linux    AppImage, .deb, .rpm, .zip
@@ -294,12 +296,12 @@ if [ "$NO_BRANCH" -eq 0 ] && [ "$DIRTY" -eq 0 ]; then
   CURRENT_BRANCH="$(git branch --show-current || true)"
   if [ "$CURRENT_BRANCH" != "desktop/electron" ]; then
     if git show-ref --verify --quiet refs/heads/desktop/electron; then
-      if ask_yes_no "Switch to the existing desktop/electron branch?" y; then
+      if ask_yes_no "Switch to the existing desktop/electron branch instead?" n; then
         echo "==> Switching to branch desktop/electron"
         git switch desktop/electron
       fi
     else
-      if ask_yes_no "Create and switch to branch desktop/electron?" y; then
+      if ask_yes_no "Create and switch to a separate desktop/electron branch?" n; then
         echo "==> Creating branch desktop/electron"
         git switch -c desktop/electron
       fi
@@ -2126,5 +2128,10 @@ Notes:
   - If the window is blank under Wayland, try an X11 session for diagnosis.
 
 Push when ready:
-  git push -u origin desktop/electron
 EOF
+CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
+if [ -n "$CURRENT_BRANCH" ]; then
+  printf '  git push -u origin %s\n' "$CURRENT_BRANCH"
+else
+  echo "  git push"
+fi
